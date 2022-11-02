@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1.1"
+
+[dev-dependencies]
+cpal = "0.14.0"
+approx = "0.5.1"
