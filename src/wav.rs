@@ -3,7 +3,7 @@ use nom::error::Error;
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
 
-use crate::reader::{AudioFormat, PcmSpecs};
+use crate::{AudioFormat, PcmSpecs};
 
 /// chunkの種類
 ///
