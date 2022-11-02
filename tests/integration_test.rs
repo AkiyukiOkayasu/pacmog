@@ -1,5 +1,3 @@
-extern crate pacmo;
-
 use approx::assert_relative_eq;
 use pacmo::PcmReader;
 
