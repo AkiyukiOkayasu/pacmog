@@ -45,21 +45,18 @@ impl<'a> PcmReader<'a> {
         for e in v {
             match e.id {
                 wav::ChunkId::Fmt => {
-                    println!("fmt");
                     let (_, spec) = wav::parse_fmt(e.data)?;
-                    println!("{:?}", spec);
                     self.specs = spec;
                 }
                 wav::ChunkId::Data => {
-                    println!("Data");
                     self.data = e.data;
                 }
-                wav::ChunkId::Fact => println!("fact"),
-                wav::ChunkId::IDv3 => println!("IDv3"),
-                wav::ChunkId::JUNK => println!("JUNK"),
-                wav::ChunkId::LIST => println!("LIST"),
-                wav::ChunkId::PEAK => println!("PEAK"),
-                wav::ChunkId::Unknown => println!("Unknown"),
+                wav::ChunkId::Fact => {}
+                wav::ChunkId::IDv3 => {}
+                wav::ChunkId::JUNK => {}
+                wav::ChunkId::LIST => {}
+                wav::ChunkId::PEAK => {}
+                wav::ChunkId::Unknown => {}
             }
         }
         return Ok((&[], &[]));
