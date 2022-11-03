@@ -25,3 +25,10 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 
 - no_stdで動作させる
   - nomのmany0とかが使えなくなる
+
+
+## Benchmark
+
+```
+cargo criterion
+```
