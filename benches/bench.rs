@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use pacmo::PcmReader;
+use pacmog::PcmReader;
 
 fn parse_wav(c: &mut Criterion) {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
