@@ -25,8 +25,12 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 
 ## Example
 
+```bash
 $ cargo run --example beep
+```
 
 ## Benchmark
 
+```bash
 $ cargo criterion
+```
