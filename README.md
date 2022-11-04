@@ -18,17 +18,15 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 | AIFF 24bit | - |
 | AIFF 32bit float | - |
 
-
-
-
 ## TODO
 
 - no_stdで動作させる
   - nomのmany0とかが使えなくなる
 
+## Example
+
+$ cargo run --example beep
 
 ## Benchmark
 
-```
-cargo criterion
-```
+$ cargo criterion
