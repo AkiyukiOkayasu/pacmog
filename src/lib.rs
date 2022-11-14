@@ -3,6 +3,7 @@ use nom::number::complete::{le_f32, le_f64, le_i16, le_i24, le_i32};
 use nom::Finish;
 use nom::{multi::many1, IResult};
 
+mod aiff;
 mod wav;
 
 #[derive(Debug, Default)]
@@ -35,7 +36,32 @@ pub struct PcmReader<'a> {
 
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        todo!(); // Ok((input, input))
+        let (_input, v) = many1(aiff::parse_chunk)(input)?;
+
+        for e in v {
+            match e.id {
+                aiff::ChunkId::Common => {
+                    let (_, spec) = aiff::parse_comm(e.data)?;
+                    self.specs = spec;
+                }
+                aiff::ChunkId::SoundData => {
+                    self.data = e.data;
+                }
+                aiff::ChunkId::FormatVersion => {}
+                aiff::ChunkId::Marker => {}
+                aiff::ChunkId::Instrument => {}
+                aiff::ChunkId::MIDI => {}
+                aiff::ChunkId::AudioRecording => {}
+                aiff::ChunkId::ApplicationSpecific => {}
+                aiff::ChunkId::Comment => {}
+                aiff::ChunkId::Name => {}
+                aiff::ChunkId::Author => {}
+                aiff::ChunkId::Copyright => {}
+                aiff::ChunkId::Annotation => {}
+                aiff::ChunkId::Unknown => {}
+            }
+        }
+        return Ok((&[], &[]));
     }
 
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
@@ -88,7 +114,13 @@ impl<'a> PcmReader<'a> {
         };
 
         //AIFFの場合
-        todo!();
+        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
+            assert_eq!(aiff.id, aiff::AiffIdentifier::Aiff);
+            assert_eq!((file_length - 8) as u32, aiff.size);
+            if let Ok((_, _)) = reader.parse_aiff(input) {
+                return reader;
+            }
+        };
 
         //WAVでもAIFFでもなかった場合
         panic!();
