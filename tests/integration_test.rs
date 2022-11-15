@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use pacmo::PcmReader;
+use pacmog::PcmReader;
 
 const SINEWAVE: [f32; 10] = [
     0f32,
