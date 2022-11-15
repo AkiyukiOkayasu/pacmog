@@ -22,49 +22,35 @@ pub struct ImaAdpcmDecoder {
 }
 
 impl ImaAdpcmDecoder {
+    /// compute predicted sample estimate newSample
     fn decode(&mut self, original_sample: u8) -> i32 {
-        // compute predicted sample estimate newSample
         // calculate difference = (originalSample + 1⁄2) * stepsize/4:
         let mut diff = 0i32;
 
         // perform multiplication through repetitive addition
         if (original_sample & 4) == 4 {
             diff += self.step_size;
-            println!("true");
-        } else {
-            println!("false");
         }
         if (original_sample & 2) == 2 {
             diff += self.step_size >> 1;
             println!("true: {}", diff);
-        } else {
-            println!("false");
         }
         if (original_sample & 1) == 1 {
             diff += self.step_size >> 2;
-            println!("true: {}", diff);
-        } else {
-            println!("false");
         }
 
         // (originalSample + 1⁄2) * stepsize/4 =originalSample * stepsize/4 + stepsize/8:
         diff += self.step_size >> 3;
-        println!("diff: {}", diff);
 
         // account for sign bit
         if (original_sample & 8) == 8 {
             diff -= diff;
-            println!("true: {}", diff);
-        } else {
-            println!("false");
         }
 
         self.new_sample += diff; // adjust predicted sample based on calculated difference:
-        println!("new_sample: {}", self.new_sample);
         self.new_sample = self.new_sample.clamp(-32768, 32767); // check for overflow and underflow
 
         self.compute_step_size(original_sample);
-
         self.new_sample
     }
 
