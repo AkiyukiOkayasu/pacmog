@@ -109,3 +109,25 @@ fn aiff_32bit() {
         assert_relative_eq!(sample, SINEWAVE[i as usize]);
     }
 }
+
+#[test]
+fn aiff_32bit_float() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
+    let reader = PcmReader::read_bytes(aiff);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(sample, SINEWAVE[i as usize]);
+    }
+}
+
+#[test]
+fn aiff_64bit_float() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
+    let reader = PcmReader::read_bytes(aiff);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(sample, SINEWAVE[i as usize]);
+    }
+}

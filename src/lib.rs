@@ -14,7 +14,8 @@ enum AudioFormat {
     Unknown,
     LinearPcmLe,
     LinearPcmBe,
-    IeeeFloat,
+    IeeeFloatLe,
+    IeeeFloatBe,
     ALaw,
     MuLaw,
     ImaAdpcm,
@@ -119,7 +120,7 @@ impl<'a> PcmReader<'a> {
 
         //AIFFの場合
         if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
-            assert_eq!(aiff.id, aiff::AiffIdentifier::Aiff);
+            assert_ne!(aiff.id, aiff::AiffIdentifier::Unknown);
             assert_eq!((file_length - 8) as u32, aiff.size);
             if let Ok((_, _)) = reader.parse_aiff(input) {
                 return reader;
@@ -208,7 +209,7 @@ impl<'a> PcmReader<'a> {
                     _ => return None,
                 }
             }
-            AudioFormat::IeeeFloat => {
+            AudioFormat::IeeeFloatLe => {
                 match self.specs.bit_depth {
                     32 => {
                         //32bit float
@@ -224,6 +225,29 @@ impl<'a> PcmReader<'a> {
                             (8u32 * sample * self.specs.num_channels as u32) + (8u32 * channel);
                         let data = &self.data[byte_offset as usize..];
                         let (_remains, sample) = le_f64::<_, Error<_>>(data).finish().unwrap();
+                        return Some(sample as f32); // TODO f32にダウンキャストするべきなのか検討
+                    }
+                    _ => {
+                        return None;
+                    }
+                }
+            }
+            AudioFormat::IeeeFloatBe => {
+                match self.specs.bit_depth {
+                    32 => {
+                        //32bit float
+                        let byte_offset =
+                            (4u32 * sample * self.specs.num_channels as u32) + (4u32 * channel);
+                        let data = &self.data[byte_offset as usize..];
+                        let (_remains, sample) = be_f32::<_, Error<_>>(data).finish().unwrap();
+                        return Some(sample);
+                    }
+                    64 => {
+                        //64bit float
+                        let byte_offset =
+                            (8u32 * sample * self.specs.num_channels as u32) + (8u32 * channel);
+                        let data = &self.data[byte_offset as usize..];
+                        let (_remains, sample) = be_f64::<_, Error<_>>(data).finish().unwrap();
                         return Some(sample as f32); // TODO f32にダウンキャストするべきなのか検討
                     }
                     _ => {

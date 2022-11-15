@@ -17,7 +17,8 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 | AIFF 16bit | ✅ |
 | AIFF 24bit | ✅ |
 | AIFF 32bit | ✅ |
-| AIFF 32bit float | - |
+| AIFF 32bit float | ✅ |
+| AIFF 64bit float | ✅ |
 
 ## TODO
 

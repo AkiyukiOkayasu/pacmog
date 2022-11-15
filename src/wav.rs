@@ -131,7 +131,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let audio_format: AudioFormat = match wave_format_tag {
         WaveFormatTag::Unknown => AudioFormat::Unknown,
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
-        WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloat,
+        WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
         WaveFormatTag::ALaw => AudioFormat::ALaw,
         WaveFormatTag::MuLaw => AudioFormat::MuLaw,
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
