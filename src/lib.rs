@@ -6,6 +6,7 @@ use nom::Finish;
 use nom::{multi::many1, IResult};
 
 mod aiff;
+mod imaadpcm;
 mod wav;
 
 #[derive(Debug, Default)]
