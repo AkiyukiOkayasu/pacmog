@@ -72,3 +72,40 @@ fn wav_64bit_float() {
         assert_relative_eq!(sample, SINEWAVE[i as usize]);
     }
 }
+
+#[test]
+fn aiff_16bit() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
+    let reader = PcmReader::read_bytes(aiff);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(
+            sample,
+            SINEWAVE[i as usize],
+            epsilon = f32::EPSILON * 200f32
+        );
+    }
+}
+
+#[test]
+fn aiff_24bit() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
+    let reader = PcmReader::read_bytes(aiff);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(sample, SINEWAVE[i as usize], epsilon = f32::EPSILON * 10f32);
+    }
+}
+
+#[test]
+fn aiff_32bit() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
+    let reader = PcmReader::read_bytes(aiff);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(sample, SINEWAVE[i as usize]);
+    }
+}

@@ -14,8 +14,9 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 | IMA ADPCM | - |
 | μ-law | - |
 | A-law | - |
-| AIFF 16bit | - |
-| AIFF 24bit | - |
+| AIFF 16bit | ✅ |
+| AIFF 24bit | ✅ |
+| AIFF 32bit | ✅ |
 | AIFF 32bit float | - |
 
 ## TODO
@@ -26,11 +27,17 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 ## Example
 
 ```bash
-$ cargo run --example beep
+cargo run --example beep
+```
+
+## Test
+
+```bash
+cargo test
 ```
 
 ## Benchmark
 
 ```bash
-$ cargo criterion
+cargo criterion
 ```

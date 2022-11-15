@@ -49,6 +49,17 @@ pub(super) struct AiffHeader {
     pub id: AiffIdentifier,
 }
 
+/// SSNDチャンクのOffset, BlockSize
+/// ほとんどの場合、offsetもblock_sizeも0になる
+///
+/// * 'offset' - ほとんどの場合0
+/// * 'block_size' - ほとんどの場合0
+#[derive(Debug)]
+pub(super) struct SsndBlockInfo {
+    pub offset: i32,
+    pub block_size: i32,
+}
+
 /// ファイルがFORMから始まり、識別子がAIFFであることのチェック
 ///
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
@@ -130,6 +141,12 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
             bit_depth,
         },
     ))
+}
+
+pub(super) fn parse_ssnd(input: &[u8]) -> IResult<&[u8], SsndBlockInfo> {
+    let (input, offset) = be_i32(input)?;
+    let (input, block_size) = be_i32(input)?;
+    Ok((input, SsndBlockInfo { offset, block_size }))
 }
 
 /// 80 bit floating point value according to the IEEE-754 specification and the Standard Apple Numeric Environment specification:

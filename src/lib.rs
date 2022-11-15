@@ -1,5 +1,7 @@
 use nom::error::Error;
-use nom::number::complete::{le_f32, le_f64, le_i16, le_i24, le_i32};
+use nom::number::complete::{
+    be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
+};
 use nom::Finish;
 use nom::{multi::many1, IResult};
 
@@ -42,10 +44,12 @@ impl<'a> PcmReader<'a> {
             match e.id {
                 aiff::ChunkId::Common => {
                     let (_, spec) = aiff::parse_comm(e.data)?;
+                    println!("{:?}", spec);
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
-                    self.data = e.data;
+                    let (data, _ssnd_block_info) = aiff::parse_ssnd(e.data)?; //TODO ssnd_block_infoのoffset, blockSizeが0でないときの対応追加
+                    self.data = data;
                 }
                 aiff::ChunkId::FormatVersion => {}
                 aiff::ChunkId::Marker => {}
@@ -173,7 +177,36 @@ impl<'a> PcmReader<'a> {
                 }
             }
             AudioFormat::LinearPcmBe => {
-                todo!();
+                match self.specs.bit_depth {
+                    16 => {
+                        let byte_offset =
+                            (2u32 * sample * self.specs.num_channels as u32) + (2u32 * channel);
+                        let data = &self.data[byte_offset as usize..];
+                        const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
+                        let (_remains, sample) = be_i16::<_, Error<_>>(data).finish().unwrap();
+                        let sample = sample as f32 / MAX as f32;
+                        return Some(sample);
+                    }
+                    24 => {
+                        let byte_offset =
+                            (3u32 * sample * self.specs.num_channels as u32) + (3u32 * channel);
+                        let data = &self.data[byte_offset as usize..];
+                        const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
+                        let (_remains, sample) = be_i24::<_, Error<_>>(data).finish().unwrap();
+                        let sample = sample as f32 / MAX as f32;
+                        return Some(sample);
+                    }
+                    32 => {
+                        let byte_offset =
+                            (4u32 * sample * self.specs.num_channels as u32) + (4u32 * channel);
+                        let data = &self.data[byte_offset as usize..];
+                        const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
+                        let (_remains, sample) = be_i32::<_, Error<_>>(data).finish().unwrap();
+                        let sample = sample as f32 / MAX as f32;
+                        return Some(sample);
+                    }
+                    _ => return None,
+                }
             }
             AudioFormat::IeeeFloat => {
                 match self.specs.bit_depth {
