@@ -93,7 +93,7 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 
 /// COMMONチャンクのパース
 pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
-    let audio_format: AudioFormat = AudioFormat::LinearPcmBe;
+    let mut audio_format: AudioFormat = AudioFormat::LinearPcmBe;
 
     let (input, num_channels) = be_i16(input)?;
     let num_channels = num_channels as u16;
@@ -103,7 +103,23 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, sample_rate) = take(10usize)(input)?;
     let sample_rate = extended2double(sample_rate) as u32;
 
-    todo!(); //AIFF-C parameters
+    if input.len() >= 4 {
+        //AIFF-C parameters
+        let (input, compression_type_id) = take(4usize)(input)?;
+        audio_format = match compression_type_id {
+            b"NONE" => AudioFormat::LinearPcmBe,
+            b"sowt" => AudioFormat::LinearPcmLe,
+            b"fl32" => AudioFormat::IeeeFloat,
+            b"FL32" => AudioFormat::IeeeFloat,
+            b"fl64" => AudioFormat::IeeeFloat,
+            b"FL64" => AudioFormat::IeeeFloat,
+            b"alaw" => AudioFormat::ALaw,
+            b"ALAW" => AudioFormat::ALaw,
+            b"ulaw" => AudioFormat::MuLaw,
+            b"ULAW" => AudioFormat::MuLaw,
+            _ => AudioFormat::LinearPcmBe,
+        }
+    }
 
     Ok((
         input,
