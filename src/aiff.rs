@@ -1,6 +1,6 @@
 use nom::bytes::complete::{tag, tag_no_case, take};
 use nom::error::Error;
-use nom::number::complete::{be_i32, be_u32};
+use nom::number::complete::{be_i16, be_i32, be_u32};
 use nom::IResult;
 
 use crate::{AudioFormat, PcmSpecs};
@@ -93,33 +93,17 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 
 /// COMMONチャンクのパース
 pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
-    todo!();
+    let audio_format: AudioFormat = AudioFormat::LinearPcmBe;
 
-    let (input, format) = le_u16(input)?;
-    let wave_format_tag: WaveFormatTag = match format {
-        0 => WaveFormatTag::Unknown,
-        1 => WaveFormatTag::LinearPcm,
-        3 => WaveFormatTag::IeeeFloat,
-        6 => WaveFormatTag::ALaw,
-        7 => WaveFormatTag::MuLaw,
-        0x11 => WaveFormatTag::ImaAdpcm,
-        _ => WaveFormatTag::Unknown,
-    };
+    let (input, num_channels) = be_i16(input)?;
+    let num_channels = num_channels as u16;
+    let (input, num_sample_frames) = be_u32(input)?;
+    let (input, bit_depth) = be_i16(input)?;
+    let bit_depth = bit_depth as u16;
+    let (input, sample_rate) = take(10usize)(input)?;
+    let sample_rate = extended2double(sample_rate) as u32;
 
-    let audio_format: AudioFormat = match wave_format_tag {
-        WaveFormatTag::Unknown => AudioFormat::Unknown,
-        WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
-        WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloat,
-        WaveFormatTag::ALaw => AudioFormat::ALaw,
-        WaveFormatTag::MuLaw => AudioFormat::MuLaw,
-        WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
-    };
-
-    let (input, num_channels) = le_u16(input)?;
-    let (input, sample_rate) = le_u32(input)?;
-    let (input, _bytes_per_seconds) = le_u32(input)?;
-    let (input, _block_size) = le_u16(input)?;
-    let (input, bit_depth) = le_u16(input)?;
+    todo!(); //AIFF-C parameters
 
     Ok((
         input,
