@@ -131,3 +131,37 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         },
     ))
 }
+
+/// 80 bit floating point value according to the IEEE-754 specification and the Standard Apple Numeric Environment specification:
+/// 1 bit sign, 15 bit exponent, 1 bit normalization indication, 63 bit mantissa
+/// https://stackoverflow.com/a/3949358
+fn extended2double(buffer: &[u8]) -> f64 {
+    assert!(buffer.len() >= 10);
+
+    let sign = if (buffer[0] & 0x80) == 0x00 {
+        1f64
+    } else {
+        -1f64
+    };
+    let exponent: u32 = ((buffer[0] as u32 & 0x7F) << 8) | buffer[1] as u32;
+    let mut mantissa: u64 = ((buffer[2] as u64) << 56)
+        | ((buffer[3] as u64) << 48)
+        | ((buffer[4] as u64) << 40)
+        | ((buffer[5] as u64) << 32)
+        | ((buffer[6] as u64) << 24)
+        | ((buffer[7] as u64) << 16)
+        | ((buffer[8] as u64) << 8)
+        | (buffer[9] as u64);
+
+    //If the highest bit of the mantissa is set, then this is a normalized number.
+    let normalize_correction = if (mantissa & 0x8000000000000000) != 0x00 {
+        1f64
+    } else {
+        0f64
+    };
+    mantissa &= 0x7FFFFFFFFFFFFFFF;
+
+    //value = (-1) ^ s * (normalizeCorrection + m / 2 ^ 63) * 2 ^ (e - 16383)
+    sign * (normalize_correction + mantissa as f64 / 2f64.powf(63f64))
+        * 2f64.powf(exponent as f64 - 16383f64)
+}
