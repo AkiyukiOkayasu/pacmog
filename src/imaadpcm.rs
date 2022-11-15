@@ -10,18 +10,18 @@ const step_size_table: [i16; 89] = [
 ];
 
 ///
-/// * 'predicted_sample' - output of ADPCM predictor
-/// * 'step_size_table_index' - index into step_size_table
+/// * 'predicted_sample' - output of ADPCM predictor [16bitInt]
+/// * 'step_size_table_index' - index into step_size_table [0~88]
 /// * 'step_size' - quantizer step size
 #[derive(Default)]
 pub struct ImaAdpcmDecoder {
     predicted_sample: i32,
     step_size_table_index: i8,
     step_size: i32,
-    new_sample: i32,
 }
 
 impl ImaAdpcmDecoder {
+    /// 4bit IMA-ADPCM to 16bit Int
     /// compute predicted sample estimate newSample
     fn decode(&mut self, original_sample: u8) -> i32 {
         // calculate difference = (originalSample + 1⁄2) * stepsize/4:
@@ -47,13 +47,14 @@ impl ImaAdpcmDecoder {
             diff -= diff;
         }
 
-        self.new_sample += diff; // adjust predicted sample based on calculated difference:
-        self.new_sample = self.new_sample.clamp(-32768, 32767); // check for overflow and underflow
+        self.predicted_sample += diff; // adjust predicted sample based on calculated difference:
+        self.predicted_sample = self.predicted_sample.clamp(-32768, 32767); // check for overflow and underflow
 
         self.compute_step_size(original_sample);
-        self.new_sample
+        self.predicted_sample
     }
 
+    /// step_sizeの更新
     fn compute_step_size(&mut self, nibble: u8) {
         // adjust index into step_size lookup table using original_sample
         self.step_size_table_index += index_table[nibble as usize];
@@ -70,7 +71,7 @@ mod tests {
     #[test]
     fn test() {
         let mut dec = ImaAdpcmDecoder::default();
-        dec.new_sample = -30976;
+        dec.predicted_sample = -30976;
         dec.step_size = 73;
         dec.step_size_table_index = 24;
         let sample = dec.decode(0x3);
