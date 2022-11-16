@@ -123,10 +123,6 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
             b"FL32" => AudioFormat::IeeeFloatBe,
             b"fl64" => AudioFormat::IeeeFloatBe,
             b"FL64" => AudioFormat::IeeeFloatBe,
-            b"alaw" => AudioFormat::ALaw,
-            b"ALAW" => AudioFormat::ALaw,
-            b"ulaw" => AudioFormat::MuLaw,
-            b"ULAW" => AudioFormat::MuLaw,
             _ => AudioFormat::LinearPcmBe,
         }
     }

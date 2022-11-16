@@ -134,9 +134,8 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         WaveFormatTag::Unknown => AudioFormat::Unknown,
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
         WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
-        WaveFormatTag::ALaw => AudioFormat::ALaw,
-        WaveFormatTag::MuLaw => AudioFormat::MuLaw,
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
+        _ => AudioFormat::Unknown,
     };
 
     match audio_format {
@@ -185,9 +184,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
                     num_samples_per_block,
                 },
             ));
-        }
-        AudioFormat::ALaw | AudioFormat::MuLaw => {
-            todo!()
         }
         AudioFormat::Unknown | AudioFormat::IeeeFloatBe | AudioFormat::LinearPcmBe => {
             panic!();

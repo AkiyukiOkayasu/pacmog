@@ -17,8 +17,6 @@ enum AudioFormat {
     LinearPcmBe,
     IeeeFloatLe,
     IeeeFloatBe,
-    ALaw,
-    MuLaw,
     ImaAdpcm,
 }
 
@@ -262,12 +260,6 @@ impl<'a> PcmReader<'a> {
                         return None;
                     }
                 }
-            }
-            AudioFormat::ALaw => {
-                todo!();
-            }
-            AudioFormat::MuLaw => {
-                todo!();
             }
             AudioFormat::ImaAdpcm => {
                 todo!();
