@@ -12,8 +12,6 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 | WAV 32bit float | ✅ |
 | WAV 64bit float | ✅ |
 | IMA ADPCM | - |
-| μ-law | - |
-| A-law | - |
 | AIFF 16bit | ✅ |
 | AIFF 24bit | ✅ |
 | AIFF 32bit | ✅ |
