@@ -99,18 +99,8 @@ impl<'a> PcmReader<'a> {
         return Ok((input, &[]));
     }
 
-    /// WAVのByte配列をパースし、再生できるように準備する。
-    /// inputを
-    /// * Arc<&[u8]>
-    /// * Arc<[u8; size]>
-    /// * &[u8]
-    /// のどれにするか検討中。
-    /// PcmReaderがいつ破棄されるかは再生時にしか決められない場合があるのでArcを使うべきだと思うが、スライスだと結局ライフタイムの問題がある。
-    /// 少なくともinputとPcmReaderのlifetimeの長さがinput>PcmReaderであればよい。    
-    /// http://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/second-edition/ch19-02-advanced-lifetimes.html
-    /// また、配列だと長さがコンパイル時に決められない。ジェネリクスで書くのか、どう書くのがRust的に良いかを探っている。
-    /// これをPcmReaderのnew()相当の初期化関数とするべきかもしれない。
-    pub fn read_bytes(input: &'a [u8]) -> Self {
+    /// * 'input' - PCM data byte array
+    pub fn new(input: &'a [u8]) -> Self {
         let file_length = input.len();
 
         let mut reader: PcmReader = Default::default();
