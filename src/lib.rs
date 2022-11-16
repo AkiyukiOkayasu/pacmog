@@ -9,7 +9,7 @@ mod aiff;
 mod imaadpcm;
 mod wav;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 enum AudioFormat {
     #[default]
     Unknown,
