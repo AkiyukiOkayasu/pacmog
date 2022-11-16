@@ -37,15 +37,6 @@ pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     ))
 }
 
-///
-
-#[derive(Default)]
-pub(super) struct ImaAdpcmDecoder {
-    predicted_sample: i32,
-    step_size_table_index: i8,
-    step_size: i32,
-}
-
 /// * 'predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
 /// * 'step_size' - quantizer step size
@@ -59,13 +50,13 @@ pub(super) fn decode(
     let step_size = STEP_SIZE_TABLE[step_size_table_index as usize] as i32;
 
     // perform multiplication through repetitive addition
-    if (last_predicted_sample & 4) == 4 {
+    if (nibble & 4) == 4 {
         diff += step_size;
     }
-    if (last_predicted_sample & 2) == 2 {
+    if (nibble & 2) == 2 {
         diff += step_size >> 1;
     }
-    if (last_predicted_sample & 1) == 1 {
+    if (nibble & 1) == 1 {
         diff += step_size >> 2;
     }
 
@@ -73,7 +64,7 @@ pub(super) fn decode(
     diff += step_size >> 3;
 
     // account for sign bit
-    if (last_predicted_sample & 8) == 8 {
+    if (nibble & 8) == 8 {
         diff -= diff;
     }
 
@@ -93,64 +84,14 @@ fn compute_step_size(nibble: u8, mut step_size_table_index: i8) -> i8 {
     step_size_table_index
 }
 
-impl ImaAdpcmDecoder {
-    /// 4bit IMA-ADPCM to 16bit Int
-    /// compute predicted sample estimate newSample
-    fn decode(&mut self, original_sample: u8) -> i32 {
-        // calculate difference = (originalSample + 1⁄2) * stepsize/4:
-        let mut diff = 0i32;
-
-        // perform multiplication through repetitive addition
-        if (original_sample & 4) == 4 {
-            diff += self.step_size;
-        }
-        if (original_sample & 2) == 2 {
-            diff += self.step_size >> 1;
-            println!("true: {}", diff);
-        }
-        if (original_sample & 1) == 1 {
-            diff += self.step_size >> 2;
-        }
-
-        // (originalSample + 1⁄2) * stepsize/4 =originalSample * stepsize/4 + stepsize/8:
-        diff += self.step_size >> 3;
-
-        // account for sign bit
-        if (original_sample & 8) == 8 {
-            diff -= diff;
-        }
-
-        self.predicted_sample += diff; // adjust predicted sample based on calculated difference:
-        self.predicted_sample = self.predicted_sample.clamp(-32768, 32767); // check for overflow and underflow
-
-        self.compute_step_size(original_sample);
-        self.predicted_sample
-    }
-
-    /// step_sizeの更新
-    fn compute_step_size(&mut self, nibble: u8) {
-        // adjust index into step_size lookup table using original_sample
-        self.step_size_table_index += INDEX_TABLE[nibble as usize];
-        self.step_size_table_index = self.step_size_table_index.clamp(0, 88); //check overflow and underflow
-
-        self.step_size = STEP_SIZE_TABLE[self.step_size_table_index as usize] as i32;
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::ImaAdpcmDecoder;
+    use crate::imaadpcm::decode;
 
     #[test]
-    fn test() {
-        let mut dec = ImaAdpcmDecoder::default();
-        dec.predicted_sample = -30976;
-        dec.step_size = 73;
-        dec.step_size_table_index = 24;
-        let sample = dec.decode(0x3);
-
+    fn ima_adpcm_decode() {
+        let (sample, step_size_table_index) = decode(3, -30976, 24);
         assert_eq!(sample, -30913); //0x873F
-        assert_eq!(dec.step_size, 66);
-        assert_eq!(dec.step_size_table_index, 23);
+        assert_eq!(step_size_table_index, 23);
     }
 }
