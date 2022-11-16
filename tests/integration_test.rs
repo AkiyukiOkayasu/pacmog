@@ -17,7 +17,7 @@ const SINEWAVE: [f32; 10] = [
 #[test]
 fn wav_16bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -32,7 +32,7 @@ fn wav_16bit() {
 #[test]
 fn wav_24bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -43,7 +43,7 @@ fn wav_24bit() {
 #[test]
 fn wav_32bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -54,7 +54,7 @@ fn wav_32bit() {
 #[test]
 fn wav_32bit_float() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -65,7 +65,7 @@ fn wav_32bit_float() {
 #[test]
 fn wav_64bit_float() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -76,7 +76,7 @@ fn wav_64bit_float() {
 #[test]
 fn aiff_16bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let reader = PcmReader::read_bytes(aiff);
+    let reader = PcmReader::new(aiff);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -91,7 +91,7 @@ fn aiff_16bit() {
 #[test]
 fn aiff_24bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
-    let reader = PcmReader::read_bytes(aiff);
+    let reader = PcmReader::new(aiff);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -102,7 +102,7 @@ fn aiff_24bit() {
 #[test]
 fn aiff_32bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
-    let reader = PcmReader::read_bytes(aiff);
+    let reader = PcmReader::new(aiff);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -113,7 +113,7 @@ fn aiff_32bit() {
 #[test]
 fn aiff_32bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::read_bytes(aiff);
+    let reader = PcmReader::new(aiff);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -124,7 +124,7 @@ fn aiff_32bit_float() {
 #[test]
 fn aiff_64bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-    let reader = PcmReader::read_bytes(aiff);
+    let reader = PcmReader::new(aiff);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -135,7 +135,7 @@ fn aiff_64bit_float() {
 #[test]
 fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let reader = PcmReader::read_bytes(data);
+    let reader = PcmReader::new(data);
 
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();

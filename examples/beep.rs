@@ -13,7 +13,7 @@ fn main() {
     println!("Default output config: {:?}", config);
     let channels = config.channels() as usize;
 
-    let reader = PcmReader::read_bytes(wav);
+    let reader = PcmReader::new(wav);
     let mut sample_index = 0;
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);

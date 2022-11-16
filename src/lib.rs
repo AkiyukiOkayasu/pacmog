@@ -35,8 +35,6 @@ pub struct PcmSpecs {
     num_samples_per_block: u16,
 }
 
-/// dataとwavとcは将来的にどれかに集約される。
-/// read_bytes()のinputの型が決定したら再検討する。
 #[derive(Default)]
 pub struct PcmReader<'a> {
     specs: PcmSpecs,
