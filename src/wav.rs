@@ -116,6 +116,8 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 }
 
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
+/// fmtチャンクはwFormatTagによって内容が異なる.
+/// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
 pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, format) = le_u16(input)?;
     let wave_format_tag: WaveFormatTag = match format {
@@ -137,19 +139,58 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
     };
 
-    let (input, num_channels) = le_u16(input)?;
-    let (input, sample_rate) = le_u32(input)?;
-    let (input, _bytes_per_seconds) = le_u32(input)?;
-    let (input, _block_size) = le_u16(input)?;
-    let (input, bit_depth) = le_u16(input)?;
+    match audio_format {
+        AudioFormat::LinearPcmLe | AudioFormat::IeeeFloatLe => {
+            let (input, num_channels) = le_u16(input)?;
+            let (input, sample_rate) = le_u32(input)?;
+            let (input, _bytes_per_seconds) = le_u32(input)?;
+            let (input, _block_size) = le_u16(input)?;
+            let (input, bit_depth) = le_u16(input)?;
 
-    Ok((
-        input,
-        PcmSpecs {
-            audio_format,
-            num_channels,
-            sample_rate,
-            bit_depth,
-        },
-    ))
+            return Ok((
+                input,
+                PcmSpecs {
+                    audio_format,
+                    num_channels,
+                    sample_rate,
+                    bit_depth,
+                    num_samples_per_block: 0,
+                },
+            ));
+        }
+        AudioFormat::ImaAdpcm => {
+            // Multimedia Data Standards Update April 15, 1994 Page30~31
+            let (input, num_channels) = le_u16(input)?; //1
+            let (input, sample_rate) = le_u32(input)?; //48000
+            let (input, _bytes_per_seconds) = le_u32(input)?; //24000
+            let (input, n_block_align) = le_u16(input)?; //1024
+            assert!(n_block_align % 4 == 0);
+            let (input, bit_depth) = le_u16(input)?; //4or3
+            let (input, cb_size) = le_u16(input)?; //2
+            assert_eq!(cb_size, 2);
+            //wSamplesPerBlock = (((nBlockAlign - (4*nChannels))) * 8) / (wBitPerSample * nChannels) + 1
+            let (input, num_samples_per_block) = le_u16(input)?; //2041
+            assert_eq!(
+                num_samples_per_block,
+                ((n_block_align - (4 * num_channels)) * 8) / (bit_depth * num_channels) + 1
+            );
+
+            return Ok((
+                input,
+                PcmSpecs {
+                    audio_format,
+                    num_channels,
+                    sample_rate,
+                    bit_depth,
+                    num_samples_per_block,
+                },
+            ));
+        }
+        AudioFormat::ALaw | AudioFormat::MuLaw => {
+            todo!()
+        }
+        AudioFormat::Unknown | AudioFormat::IeeeFloatBe | AudioFormat::LinearPcmBe => {
+            panic!();
+        }
+    }
 }
