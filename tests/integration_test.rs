@@ -131,3 +131,18 @@ fn aiff_64bit_float() {
         assert_relative_eq!(sample, SINEWAVE[i as usize]);
     }
 }
+
+#[test]
+fn ima_adpcm_4bit() {
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
+    let reader = PcmReader::read_bytes(data);
+
+    for i in 0..10 {
+        let sample = reader.read_sample(0, i).unwrap();
+        assert_relative_eq!(
+            sample,
+            SINEWAVE[i as usize],
+            epsilon = f32::EPSILON * 200f32
+        );
+    }
+}
