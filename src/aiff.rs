@@ -138,6 +138,7 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
             num_channels,
             sample_rate,
             bit_depth,
+            num_samples_per_block: 0,
         },
     ))
 }
