@@ -1,5 +1,4 @@
-use nom::bytes::complete::{tag, tag_no_case, take};
-use nom::error::Error;
+use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
 

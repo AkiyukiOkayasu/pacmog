@@ -115,7 +115,7 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
 
     if input.len() >= 4 {
         //AIFF-C parameters
-        let (input, compression_type_id) = take(4usize)(input)?;
+        let (_input, compression_type_id) = take(4usize)(input)?;
         audio_format = match compression_type_id {
             b"NONE" => AudioFormat::LinearPcmBe,
             b"sowt" => AudioFormat::LinearPcmLe,

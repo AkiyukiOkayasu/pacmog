@@ -45,7 +45,7 @@ pub struct PcmReader<'a> {
 
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        let (_input, v) = many1(aiff::parse_chunk)(input)?;
+        let (input, v) = many1(aiff::parse_chunk)(input)?;
 
         for e in v {
             match e.id {
@@ -72,12 +72,12 @@ impl<'a> PcmReader<'a> {
                 aiff::ChunkId::Unknown => {}
             }
         }
-        return Ok((&[], &[]));
+        return Ok((input, &[]));
     }
 
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         //many1はallocが実装されていないと使えない。no_stdで使うなら逐次的に実行するべき。
-        let (_input, v) = many1(wav::parse_chunk)(input)?;
+        let (input, v) = many1(wav::parse_chunk)(input)?;
 
         for e in v {
             match e.id {
@@ -96,7 +96,7 @@ impl<'a> PcmReader<'a> {
                 wav::ChunkId::Unknown => {}
             }
         }
-        return Ok((&[], &[]));
+        return Ok((input, &[]));
     }
 
     /// WAVのByte配列をパースし、再生できるように準備する。
