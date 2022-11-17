@@ -20,7 +20,7 @@ enum AudioFormat {
     ImaAdpcm,
 }
 
-///
+/// PCMファイルの情報.
 /// * 'audio_format' -
 /// * 'num_channels' - Mono: 1, Stereo: 2
 /// * 'sample_rate' - 48000Hz, 44100Hz and so on.

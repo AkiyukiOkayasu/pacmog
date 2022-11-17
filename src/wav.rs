@@ -38,8 +38,6 @@ pub(super) enum WaveFormatTag {
     Unknown = 0x00,   //0
     LinearPcm = 0x01, //1
     IeeeFloat = 0x03, //3
-    ALaw = 0x06,      //6
-    MuLaw = 0x07,     //7
     ImaAdpcm = 0x11,  //0x11 aka DVI ADPCM
 }
 
@@ -104,8 +102,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         0 => WaveFormatTag::Unknown,
         1 => WaveFormatTag::LinearPcm,
         3 => WaveFormatTag::IeeeFloat,
-        6 => WaveFormatTag::ALaw,
-        7 => WaveFormatTag::MuLaw,
         0x11 => WaveFormatTag::ImaAdpcm,
         _ => WaveFormatTag::Unknown,
     };
@@ -115,7 +111,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
         WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
-        _ => AudioFormat::Unknown,
     };
 
     let (input, num_channels) = le_u16(input)?;
