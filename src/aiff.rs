@@ -52,7 +52,6 @@ impl TryFrom<&[u8]> for ChunkId {
     }
 }
 
-#[derive(Debug)]
 enum CompressionTypeId {
     None,
     Sowt,
@@ -87,7 +86,6 @@ pub(super) struct Chunk<'a> {
     pub data: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
 pub(super) enum AiffIdentifier {
     Aiff,  //b"AIFF"
     AiffC, //b"AIFC" AIFF-C
@@ -113,7 +111,6 @@ impl TryFrom<&[u8]> for AiffIdentifier {
 ///
 /// * 'size' - ファイルサイズ(byte) - 8
 /// * 'id' - RIFFの識別子 基本"WAVE"
-#[derive(Debug)]
 pub(super) struct AiffHeader {
     pub size: u32,
     pub id: AiffIdentifier,
@@ -130,8 +127,7 @@ pub(super) struct SsndBlockInfo {
     pub block_size: i32,
 }
 
-/// ファイルがFORMから始まり、識別子がAIFFであることのチェック
-///
+/// ファイルがFORMから始まり、識別子がAIFFもしくはAIFF-Cであることのチェック
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     let (input, _) = tag(b"FORM")(input)?;
     let (input, size) = be_u32(input)?;
@@ -140,6 +136,7 @@ pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     Ok((input, AiffHeader { size, id }))
 }
 
+/// 先頭のチャンクを取得する
 pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
     let (input, id) = take(4usize)(input)?;
     let id: ChunkId = id.try_into().unwrap();
@@ -184,6 +181,7 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     ))
 }
 
+// SSNDチャンクのパース
 pub(super) fn parse_ssnd(input: &[u8]) -> IResult<&[u8], SsndBlockInfo> {
     let (input, offset) = be_i32(input)?;
     let (input, block_size) = be_i32(input)?;

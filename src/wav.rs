@@ -5,12 +5,7 @@ use nom::IResult;
 
 use crate::{AudioFormat, PcmSpecs};
 
-/// chunkの種類
-///
-/// * "fmt " - 必須チャンク
-/// * "fact" - optional
-/// * "PEAK" - optional
-/// * "data" - 必須チャンク
+/// WAVのchunkの種類
 #[derive(Debug, PartialEq, Default)]
 pub(super) enum ChunkId {
     Fmt,  // b"fmt "
@@ -77,9 +72,7 @@ impl TryFrom<u16> for WaveFormatTag {
 }
 
 /// RIFFチャンクの情報
-///
-/// * 'size' - ファイルサイズ(byte) - 8
-/// * 'id' - RIFFの識別子 基本"WAVE"
+/// * 'size' - ファイルサイズ(byte)-8
 #[derive(Debug)]
 pub(super) struct RiffHeader {
     pub size: u32,
@@ -102,7 +95,7 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 }
 
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
-/// fmtチャンクはwFormatTagによって内容が異なる.
+/// fmtチャンクはwFormatTagによって拡張属性が追加される場合がある.
 /// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
 pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, wave_format_tag) = le_u16(input)?;
@@ -119,6 +112,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, bit_depth) = le_u16(input)?;
 
     if audio_format == AudioFormat::ImaAdpcm {
+        //IMA-ADPCMの拡張属性の取得
         assert!(block_size % 4 == 0);
         assert!(input.len() >= 4);
         let (input, cb_size) = le_u16(input)?; //2
