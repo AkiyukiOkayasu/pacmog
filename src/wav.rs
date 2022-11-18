@@ -1,3 +1,4 @@
+use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
@@ -11,7 +12,7 @@ use crate::{AudioFormat, PcmSpecs};
 /// * "PEAK" - optional
 /// * "data" - 必須チャンク
 #[derive(Debug, PartialEq, Default)]
-pub(crate) enum ChunkId {
+pub(super) enum ChunkId {
     Fmt,  // b"fmt "
     Fact, // b"fact"
     PEAK, // b"PEAK"
@@ -23,8 +24,30 @@ pub(crate) enum ChunkId {
     Unknown,
 }
 
+impl TryFrom<&[u8]> for ChunkId {
+    type Error = ();
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v.len() != 4 {
+            return Err(());
+        }
+
+        match v {
+            b"fmt " => Ok(ChunkId::Fmt),
+            b"fact" => Ok(ChunkId::Fact),
+            b"PEAK" => Ok(ChunkId::PEAK),
+            b"data" => Ok(ChunkId::Data),
+            b"junk" => Ok(ChunkId::JUNK),
+            b"JUNK" => Ok(ChunkId::JUNK),
+            b"IDv3" => Ok(ChunkId::IDv3),
+            b"LIST" => Ok(ChunkId::LIST),
+            _ => Ok(ChunkId::Unknown),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
-pub(crate) struct Chunk<'a> {
+pub(super) struct Chunk<'a> {
     pub id: ChunkId,
     pub size: u32,
     pub data: &'a [u8],
@@ -34,11 +57,25 @@ pub(crate) struct Chunk<'a> {
 /// LinearPCMとIEEE FloatとIMA ADPCMくらいしか使わないはず
 /// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/shared/mmreg.h#L2107-L2372
 #[derive(Debug)]
-pub(super) enum WaveFormatTag {
+enum WaveFormatTag {
     Unknown = 0x00,   //0
     LinearPcm = 0x01, //1
     IeeeFloat = 0x03, //3
     ImaAdpcm = 0x11,  //0x11 aka DVI ADPCM
+}
+
+impl TryFrom<u16> for WaveFormatTag {
+    type Error = ();
+
+    fn try_from(v: u16) -> Result<Self, Self::Error> {
+        match v {
+            x if x == WaveFormatTag::LinearPcm as u16 => Ok(WaveFormatTag::LinearPcm),
+            x if x == WaveFormatTag::IeeeFloat as u16 => Ok(WaveFormatTag::IeeeFloat),
+            x if x == WaveFormatTag::ImaAdpcm as u16 => Ok(WaveFormatTag::ImaAdpcm),
+            x if x == WaveFormatTag::Unknown as u16 => Ok(WaveFormatTag::Unknown),
+            _ => Err(()),
+        }
+    }
 }
 
 /// RIFFチャンクの情報
@@ -60,19 +97,7 @@ pub(super) fn parse_riff_header(input: &[u8]) -> IResult<&[u8], RiffHeader> {
 
 pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
     let (input, chunk_id) = take(4usize)(input)?;
-
-    let id = match chunk_id {
-        b"fmt " => ChunkId::Fmt,
-        b"fact" => ChunkId::Fact,
-        b"PEAK" => ChunkId::PEAK,
-        b"data" => ChunkId::Data,
-        b"junk" => ChunkId::JUNK,
-        b"JUNK" => ChunkId::JUNK,
-        b"IDv3" => ChunkId::IDv3,
-        b"LIST" => ChunkId::LIST,
-        _ => ChunkId::Unknown,
-    };
-
+    let id: ChunkId = chunk_id.try_into().unwrap();
     let (input, size) = le_u32(input)?;
     let (input, data) = take(size)(input)?;
     Ok((input, Chunk { id, size, data }))
@@ -82,20 +107,13 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 /// fmtチャンクはwFormatTagによって内容が異なる.
 /// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
 pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
-    let (input, format) = le_u16(input)?;
-    let wave_format_tag: WaveFormatTag = match format {
-        0 => WaveFormatTag::Unknown,
-        1 => WaveFormatTag::LinearPcm,
-        3 => WaveFormatTag::IeeeFloat,
-        0x11 => WaveFormatTag::ImaAdpcm,
-        _ => WaveFormatTag::Unknown,
-    };
-
-    let audio_format: AudioFormat = match wave_format_tag {
-        WaveFormatTag::Unknown => AudioFormat::Unknown,
-        WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
-        WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
-        WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
+    let (input, wave_format_tag) = le_u16(input)?;
+    let audio_format = match wave_format_tag.try_into() {
+        Ok(WaveFormatTag::Unknown) => AudioFormat::Unknown,
+        Ok(WaveFormatTag::LinearPcm) => AudioFormat::LinearPcmLe,
+        Ok(WaveFormatTag::IeeeFloat) => AudioFormat::IeeeFloatLe,
+        Ok(WaveFormatTag::ImaAdpcm) => AudioFormat::ImaAdpcm,
+        Err(_) => AudioFormat::Unknown,
     };
 
     let (input, num_channels) = le_u16(input)?;
