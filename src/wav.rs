@@ -41,13 +41,6 @@ pub(super) enum WaveFormatTag {
     ImaAdpcm = 0x11,  //0x11 aka DVI ADPCM
 }
 
-#[derive(Debug, PartialEq)]
-pub(super) enum RiffIdentifier {
-    Wave, //b"WAVE"
-    Avi,  //b"AVI "
-    Unknown,
-}
-
 /// RIFFチャンクの情報
 ///
 /// * 'size' - ファイルサイズ(byte) - 8
@@ -55,22 +48,14 @@ pub(super) enum RiffIdentifier {
 #[derive(Debug)]
 pub(super) struct RiffHeader {
     pub size: u32,
-    pub id: RiffIdentifier,
 }
 
 /// ファイルがRIFFから始まり、識別子がWAVEであることのチェック
 pub(super) fn parse_riff_header(input: &[u8]) -> IResult<&[u8], RiffHeader> {
     let (input, _) = tag(b"RIFF")(input)?;
     let (input, size) = le_u32(input)?;
-    let (input, id_str) = take(4usize)(input)?;
-
-    let id: RiffIdentifier = match id_str {
-        b"WAVE" => RiffIdentifier::Wave,
-        b"AVI " => RiffIdentifier::Avi,
-        _ => RiffIdentifier::Unknown,
-    };
-
-    Ok((input, RiffHeader { size, id }))
+    let (input, _) = tag(b"WAVE")(input)?;
+    Ok((input, RiffHeader { size }))
 }
 
 pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {

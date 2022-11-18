@@ -105,7 +105,6 @@ impl<'a> PcmReader<'a> {
 
         //WAVの場合
         if let Ok((input, riff)) = wav::parse_riff_header(input) {
-            assert_eq!(riff.id, wav::RiffIdentifier::Wave);
             assert_eq!((file_length - 8) as u32, riff.size);
             if let Ok((_, _)) = reader.parse_wav(input) {
                 return reader;
