@@ -9,8 +9,8 @@ mod aiff;
 mod imaadpcm;
 mod wav;
 
-#[derive(Debug, Default, PartialEq, Eq)]
-enum AudioFormat {
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
+pub enum AudioFormat {
     #[default]
     Unknown,
     LinearPcmLe,
@@ -25,12 +25,12 @@ enum AudioFormat {
 /// * 'num_channels' - Mono: 1, Stereo: 2
 /// * 'sample_rate' - 48000Hz, 44100Hz and so on.
 /// * 'bit_depth' - 16bit, 24bit, 32bit and so on.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct PcmSpecs {
-    audio_format: AudioFormat,
-    num_channels: u16,
-    sample_rate: u32,
-    bit_depth: u16,
+    pub audio_format: AudioFormat,
+    pub num_channels: u16,
+    pub sample_rate: u32,
+    pub bit_depth: u16,
 }
 
 #[derive(Default)]
@@ -119,6 +119,11 @@ impl<'a> PcmReader<'a> {
 
         //WAVでもAIFFでもなかった場合
         panic!();
+    }
+
+    /// ファイル情報の取得
+    pub fn get_pcm_specs(&self) -> PcmSpecs {
+        self.specs.clone()
     }
 
     /// 読み出し位置を指定のサンプル位置にリセットする
