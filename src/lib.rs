@@ -126,25 +126,6 @@ impl<'a> PcmReader<'a> {
         self.specs.clone()
     }
 
-    /// 読み出し位置を指定のサンプル位置にリセットする
-    /// * 'sample' - サンプル位置
-    pub fn set_position(&self, sample: u32) {
-        todo!();
-    }
-
-    /// 次のサンプルを全チャンネル読み出す
-    /// * 'out' - 読み出された結果が格納されるスライス 0chから順に並ぶ
-    pub fn read_next_frame(&self, mut out: &[f32]) {
-        todo!();
-    }
-
-    /// あるサンプル地点の全てのチャンネルを読み出す
-    /// * 'sample' - 読み出すサンプルの位置
-    /// * 'out' - 読み出された結果が格納されるスライス 0chから順に並ぶ
-    pub fn read_frame(&self, sample: u32, mut out: &[f32]) {
-        todo!();
-    }
-
     /// DATAチャンクを読んでサンプルを読みだす    
     /// フォーマットに関わらず+/-1の範囲に正規化された数を返す
     pub fn read_sample(&self, channel: u32, sample: u32) -> Option<f32> {
