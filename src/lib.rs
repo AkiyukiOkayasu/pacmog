@@ -111,7 +111,6 @@ impl<'a> PcmReader<'a> {
 
         //AIFFの場合
         if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
-            assert_ne!(aiff.id, aiff::AiffIdentifier::Unknown);
             assert_eq!((file_length - 8) as u32, aiff.size);
             if let Ok((_, _)) = reader.parse_aiff(input) {
                 return reader;

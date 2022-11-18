@@ -1,3 +1,4 @@
+use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{be_i16, be_i32, be_u32};
 use nom::IResult;
@@ -6,7 +7,7 @@ use crate::{AudioFormat, PcmSpecs};
 
 /// ckID chunkの種類
 #[derive(Debug, PartialEq, Default)]
-pub(crate) enum ChunkId {
+pub(super) enum ChunkId {
     Common,              // b"COMM" Common
     SoundData,           // b"SSND" Sound data
     Marker,              // b"MARK" optional
@@ -24,8 +25,63 @@ pub(crate) enum ChunkId {
     Unknown,
 }
 
+impl TryFrom<&[u8]> for ChunkId {
+    type Error = ();
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v.len() != 4 {
+            return Err(());
+        }
+
+        match v {
+            b"COMM" => Ok(ChunkId::Common),
+            b"SSND" => Ok(ChunkId::SoundData),
+            b"FVER" => Ok(ChunkId::FormatVersion),
+            b"MARK" => Ok(ChunkId::Marker),
+            b"INST" => Ok(ChunkId::Instrument),
+            b"MIDI" => Ok(ChunkId::MIDI),
+            b"AESD" => Ok(ChunkId::AudioRecording),
+            b"APPL" => Ok(ChunkId::ApplicationSpecific),
+            b"COMT" => Ok(ChunkId::Comment),
+            b"NAME" => Ok(ChunkId::Name),
+            b"AUTH" => Ok(ChunkId::Author),
+            b"(c) " => Ok(ChunkId::Copyright),
+            b"ANNO" => Ok(ChunkId::Annotation),
+            _ => Ok(ChunkId::Unknown),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum CompressionTypeId {
+    None,
+    Sowt,
+    FL32,
+    FL64,
+}
+
+impl TryFrom<&[u8]> for CompressionTypeId {
+    type Error = ();
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v.len() != 4 {
+            return Err(());
+        }
+
+        match v {
+            b"NONE" => Ok(CompressionTypeId::None),
+            b"sowt" => Ok(CompressionTypeId::Sowt),
+            b"fl32" => Ok(CompressionTypeId::FL32),
+            b"FL32" => Ok(CompressionTypeId::FL32),
+            b"fl64" => Ok(CompressionTypeId::FL64),
+            b"FL64" => Ok(CompressionTypeId::FL64),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
-pub(crate) struct Chunk<'a> {
+pub(super) struct Chunk<'a> {
     pub id: ChunkId,
     pub size: u32,
     pub data: &'a [u8],
@@ -33,9 +89,24 @@ pub(crate) struct Chunk<'a> {
 
 #[derive(Debug, PartialEq)]
 pub(super) enum AiffIdentifier {
-    Aiff, //b"AIFF"
-    Aifc, //b"AIFC" AIFF-C
-    Unknown,
+    Aiff,  //b"AIFF"
+    AiffC, //b"AIFC" AIFF-C
+}
+
+impl TryFrom<&[u8]> for AiffIdentifier {
+    type Error = ();
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v.len() != 4 {
+            return Err(());
+        }
+
+        match v {
+            b"AIFF" => Ok(AiffIdentifier::Aiff),
+            b"AIFC" => Ok(AiffIdentifier::AiffC),
+            _ => Err(()),
+        }
+    }
 }
 
 /// AIFFチャンクの情報
@@ -64,37 +135,14 @@ pub(super) struct SsndBlockInfo {
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     let (input, _) = tag(b"FORM")(input)?;
     let (input, size) = be_u32(input)?;
-    let (input, id_str) = take(4usize)(input)?;
-
-    let id: AiffIdentifier = match id_str {
-        b"AIFF" => AiffIdentifier::Aiff,
-        b"AIFC" => AiffIdentifier::Aifc,
-        _ => AiffIdentifier::Unknown,
-    };
-
+    let (input, id) = take(4usize)(input)?;
+    let id: AiffIdentifier = id.try_into().unwrap();
     Ok((input, AiffHeader { size, id }))
 }
 
 pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
     let (input, id) = take(4usize)(input)?;
-
-    let id = match id {
-        b"COMM" => ChunkId::Common,
-        b"SSND" => ChunkId::SoundData,
-        b"FVER" => ChunkId::FormatVersion,
-        b"MARK" => ChunkId::Marker,
-        b"INST" => ChunkId::Instrument,
-        b"MIDI" => ChunkId::MIDI,
-        b"AESD" => ChunkId::AudioRecording,
-        b"APPL" => ChunkId::ApplicationSpecific,
-        b"COMT" => ChunkId::Comment,
-        b"NAME" => ChunkId::Name,
-        b"AUTH" => ChunkId::Author,
-        b"(c) " => ChunkId::Copyright,
-        b"ANNO" => ChunkId::Annotation,
-        _ => ChunkId::Unknown,
-    };
-
+    let id: ChunkId = id.try_into().unwrap();
     let (input, size) = be_u32(input)?;
     let (input, data) = take(size)(input)?;
 
@@ -116,14 +164,12 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     if input.len() >= 4 {
         //AIFF-C parameters
         let (_input, compression_type_id) = take(4usize)(input)?;
+        let compression_type_id: CompressionTypeId = compression_type_id.try_into().unwrap();
         audio_format = match compression_type_id {
-            b"NONE" => AudioFormat::LinearPcmBe,
-            b"sowt" => AudioFormat::LinearPcmLe,
-            b"fl32" => AudioFormat::IeeeFloatBe,
-            b"FL32" => AudioFormat::IeeeFloatBe,
-            b"fl64" => AudioFormat::IeeeFloatBe,
-            b"FL64" => AudioFormat::IeeeFloatBe,
-            _ => AudioFormat::LinearPcmBe,
+            CompressionTypeId::None => AudioFormat::LinearPcmBe,
+            CompressionTypeId::Sowt => AudioFormat::LinearPcmLe,
+            CompressionTypeId::FL32 => AudioFormat::IeeeFloatBe,
+            CompressionTypeId::FL64 => AudioFormat::IeeeFloatBe,
         }
     }
 

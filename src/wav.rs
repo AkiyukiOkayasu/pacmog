@@ -58,7 +58,6 @@ pub(super) struct Chunk<'a> {
 /// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/shared/mmreg.h#L2107-L2372
 #[derive(Debug)]
 enum WaveFormatTag {
-    Unknown = 0x00,   //0
     LinearPcm = 0x01, //1
     IeeeFloat = 0x03, //3
     ImaAdpcm = 0x11,  //0x11 aka DVI ADPCM
@@ -72,7 +71,6 @@ impl TryFrom<u16> for WaveFormatTag {
             x if x == WaveFormatTag::LinearPcm as u16 => Ok(WaveFormatTag::LinearPcm),
             x if x == WaveFormatTag::IeeeFloat as u16 => Ok(WaveFormatTag::IeeeFloat),
             x if x == WaveFormatTag::ImaAdpcm as u16 => Ok(WaveFormatTag::ImaAdpcm),
-            x if x == WaveFormatTag::Unknown as u16 => Ok(WaveFormatTag::Unknown),
             _ => Err(()),
         }
     }
@@ -108,12 +106,10 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 /// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
 pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, wave_format_tag) = le_u16(input)?;
-    let audio_format = match wave_format_tag.try_into() {
-        Ok(WaveFormatTag::Unknown) => AudioFormat::Unknown,
-        Ok(WaveFormatTag::LinearPcm) => AudioFormat::LinearPcmLe,
-        Ok(WaveFormatTag::IeeeFloat) => AudioFormat::IeeeFloatLe,
-        Ok(WaveFormatTag::ImaAdpcm) => AudioFormat::ImaAdpcm,
-        Err(_) => AudioFormat::Unknown,
+    let audio_format = match wave_format_tag.try_into().unwrap() {
+        WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
+        WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
+        WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
     };
 
     let (input, num_channels) = le_u16(input)?;
