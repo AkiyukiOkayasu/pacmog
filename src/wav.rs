@@ -123,7 +123,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
                 num_channels,
                 sample_rate,
                 bit_depth,
-                num_samples_per_block,
             },
         ));
     }
@@ -135,7 +134,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
             num_channels,
             sample_rate,
             bit_depth,
-            num_samples_per_block: 0,
         },
     ))
 }

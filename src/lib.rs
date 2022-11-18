@@ -25,14 +25,12 @@ enum AudioFormat {
 /// * 'num_channels' - Mono: 1, Stereo: 2
 /// * 'sample_rate' - 48000Hz, 44100Hz and so on.
 /// * 'bit_depth' - 16bit, 24bit, 32bit and so on.
-/// * 'num_samples_per_block' - IMA-ADPCMの時のみ使う
 #[derive(Default, Debug)]
 pub struct PcmSpecs {
     audio_format: AudioFormat,
     num_channels: u16,
     sample_rate: u32,
     bit_depth: u16,
-    num_samples_per_block: u16,
 }
 
 #[derive(Default)]
