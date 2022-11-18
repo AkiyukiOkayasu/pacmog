@@ -128,6 +128,9 @@ impl<'a> PcmReader<'a> {
 
     /// DATAチャンクを読んでサンプルを読みだす    
     /// フォーマットに関わらず+/-1の範囲に正規化された数を返す
+    /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
+    /// もしくはf32かf64を選択できるようにする
+    /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
     pub fn read_sample(&self, channel: u32, sample: u32) -> Option<f32> {
         if channel >= self.specs.num_channels as u32 {
             return None;
