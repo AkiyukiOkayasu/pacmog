@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use pacmog::PcmReader;
+use pacmog::{AudioFormat, PcmReader};
 
 const SINEWAVE: [f32; 10] = [
     0f32,
@@ -13,6 +13,50 @@ const SINEWAVE: [f32; 10] = [
     0.39628112f32,
     0.44157755f32,
 ];
+
+#[test]
+fn wav_linearpcm_specs() {
+    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
+    let reader = PcmReader::new(wav);
+    let spec = reader.get_pcm_specs();
+    assert_eq!(spec.bit_depth, 16);
+    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 48000);
+}
+
+#[test]
+fn aiff_linearpcm_specs() {
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
+    let reader = PcmReader::new(data);
+    let spec = reader.get_pcm_specs();
+    assert_eq!(spec.bit_depth, 16);
+    assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe); //Big endian
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 48000);
+}
+
+#[test]
+fn wav_float32_specs() {
+    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
+    let reader = PcmReader::new(wav);
+    let spec = reader.get_pcm_specs();
+    assert_eq!(spec.bit_depth, 32);
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); //Little endian
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 48000);
+}
+
+#[test]
+fn aiff_float32_specs() {
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
+    let reader = PcmReader::new(data);
+    let spec = reader.get_pcm_specs();
+    assert_eq!(spec.bit_depth, 32);
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe); //Big endian
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 48000);
+}
 
 #[test]
 fn wav_16bit() {
