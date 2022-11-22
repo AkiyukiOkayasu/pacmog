@@ -1,4 +1,5 @@
 use approx::assert_relative_eq;
+use fixed::types::I1F15;
 use pacmog::{AudioFormat, PcmReader};
 
 const SINEWAVE: [f32; 10] = [
@@ -13,6 +14,16 @@ const SINEWAVE: [f32; 10] = [
     0.39628112f32,
     0.44157755f32,
 ];
+
+#[test]
+fn fixed_test() {
+    let hoge = I1F15::from_num(0.5);
+    let fuga = I1F15::from_num(0.1);
+    assert_eq!(hoge, 0.5);
+    assert_eq!(fuga.to_ne_bytes(), I1F15::from_num(0.1).to_ne_bytes());
+    let aaa = hoge.checked_mul(fuga).unwrap();
+    assert_eq!(aaa.to_ne_bytes(), I1F15::from_num(0.05).to_ne_bytes());
+}
 
 #[test]
 fn wav_linearpcm_specs() {
