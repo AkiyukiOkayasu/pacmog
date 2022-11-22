@@ -25,12 +25,14 @@ pub enum AudioFormat {
 /// * 'num_channels' - Mono: 1, Stereo: 2
 /// * 'sample_rate' - 48000Hz, 44100Hz and so on.
 /// * 'bit_depth' - 16bit, 24bit, 32bit and so on.
+/// * 'num_samples' - Number of samples per channel.
 #[derive(Default, Debug, Clone)]
 pub struct PcmSpecs {
     pub audio_format: AudioFormat,
     pub num_channels: u16,
     pub sample_rate: u32,
     pub bit_depth: u16,
+    pub num_samples: u32,
 }
 
 #[derive(Default)]
@@ -85,6 +87,12 @@ impl<'a> PcmReader<'a> {
                     self.specs.bit_depth = fmt_spec.bit_depth;
                 }
                 wav::ChunkId::Data => {
+                    let num_samples = wav::calc_num_samples_per_channel(
+                        e.size,
+                        self.specs.bit_depth,
+                        self.specs.num_channels,
+                    );
+                    self.specs.num_samples = num_samples;
                     self.data = e.data;
                 }
                 wav::ChunkId::Fact => {}
