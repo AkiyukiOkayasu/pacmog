@@ -23,6 +23,7 @@ fn wav_linearpcm_specs() {
     assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_samples, 240000);
 }
 
 #[test]
@@ -34,6 +35,7 @@ fn aiff_linearpcm_specs() {
     assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe); //Big endian
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_samples, 240000);
 }
 
 #[test]
@@ -45,6 +47,7 @@ fn wav_float32_specs() {
     assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); //Little endian
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_samples, 240000);
 }
 
 #[test]
@@ -56,6 +59,7 @@ fn aiff_float32_specs() {
     assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe); //Big endian
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_samples, 240000);
 }
 
 #[test]
