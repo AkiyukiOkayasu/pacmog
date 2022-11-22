@@ -1,6 +1,6 @@
 use approx::assert_relative_eq;
 use fixed::types::I1F15;
-use pacmog::{AudioFormat, PcmReader};
+use pacmog::{AudioFormat, PcmPlayer, PcmReader};
 
 const SINEWAVE: [f32; 10] = [
     0f32,
@@ -107,6 +107,20 @@ fn wav_32bit() {
     for i in 0..10 {
         let sample = reader.read_sample(0, i).unwrap();
         assert_relative_eq!(sample, SINEWAVE[i as usize]);
+    }
+}
+
+#[test]
+fn wav_player_32bit() {
+    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
+    let mut player = PcmPlayer::new(wav);
+    player.set_position(0);
+    let mut buffer: [f32; 2] = [0f32, 0f32];
+    let b = buffer.as_mut_slice();
+
+    for i in 0..10 {
+        player.get_next_frame(b);
+        assert_relative_eq!(b[0], SINEWAVE[i as usize]);
     }
 }
 
