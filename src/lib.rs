@@ -78,8 +78,11 @@ impl<'a> PcmReader<'a> {
         for e in v {
             match e.id {
                 wav::ChunkId::Fmt => {
-                    let (_, spec) = wav::parse_fmt(e.data)?;
-                    self.specs = spec;
+                    let (_, fmt_spec) = wav::parse_fmt(e.data)?;
+                    self.specs.num_channels = fmt_spec.num_channels;
+                    self.specs.sample_rate = fmt_spec.sample_rate;
+                    self.specs.audio_format = fmt_spec.audio_format;
+                    self.specs.bit_depth = fmt_spec.bit_depth;
                 }
                 wav::ChunkId::Data => {
                     self.data = e.data;

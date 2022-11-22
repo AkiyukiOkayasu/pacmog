@@ -3,7 +3,7 @@ use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
 
-use crate::{AudioFormat, PcmSpecs};
+use crate::AudioFormat;
 
 /// WAVのchunkの種類
 #[derive(Debug, PartialEq, Default)]
@@ -94,10 +94,18 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
     Ok((input, Chunk { id, size, data }))
 }
 
+#[derive(Debug, Default)]
+pub(super) struct WavFmtSpecs {
+    pub audio_format: AudioFormat,
+    pub num_channels: u16,
+    pub sample_rate: u32,
+    pub bit_depth: u16,
+}
+
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
 /// fmtチャンクはwFormatTagによって拡張属性が追加される場合がある.
 /// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
-pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
+pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
     let (input, wave_format_tag) = le_u16(input)?;
     let audio_format = match wave_format_tag.try_into().unwrap() {
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
@@ -126,7 +134,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
 
         return Ok((
             input,
-            PcmSpecs {
+            WavFmtSpecs {
                 audio_format,
                 num_channels,
                 sample_rate,
@@ -137,7 +145,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
 
     Ok((
         input,
-        PcmSpecs {
+        WavFmtSpecs {
             audio_format,
             num_channels,
             sample_rate,
