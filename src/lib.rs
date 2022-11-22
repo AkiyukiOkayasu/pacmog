@@ -147,8 +147,7 @@ impl<'a> PcmReader<'a> {
             return None;
         }
 
-        let max_sample_size = self.data.len() / self.specs.num_channels as usize;
-        if sample >= max_sample_size as u32 {
+        if sample >= self.specs.num_samples {
             return None;
         }
 
