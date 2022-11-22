@@ -153,3 +153,15 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
         },
     ))
 }
+
+/// dataチャンクのサイズ情報からサンプル数を求める
+/// * 'data_chunk_size_in_bytes' -
+/// * 'bit_depth' - 16 or 24 or 32 bit
+/// * 'num_channels' -
+pub(super) fn calc_num_samples_per_channel(
+    data_chunk_size_in_bytes: u32,
+    bit_depth: u16,
+    num_channels: u16,
+) -> u32 {
+    data_chunk_size_in_bytes / (bit_depth / 8u16 * num_channels) as u32
+}
