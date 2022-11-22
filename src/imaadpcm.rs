@@ -40,7 +40,7 @@ pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
 /// * 'nibble' - 4bit signed int data
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
-pub(super) fn decode(
+pub(super) fn decode_sample(
     nibble: u8,
     last_predicted_sample: i16,
     step_size_table_index: i8,
@@ -86,11 +86,11 @@ fn compute_step_size(nibble: u8, mut step_size_table_index: i8) -> i8 {
 
 #[cfg(test)]
 mod tests {
-    use crate::imaadpcm::decode;
+    use crate::imaadpcm::decode_sample;
 
     #[test]
     fn ima_adpcm_decode() {
-        let (sample, step_size_table_index) = decode(3, -30976, 24);
+        let (sample, step_size_table_index) = decode_sample(3, -30976, 24);
         assert_eq!(sample, -30913); //0x873F
         assert_eq!(step_size_table_index, 23);
     }
