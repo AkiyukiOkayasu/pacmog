@@ -100,14 +100,16 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
 /// * 'num_channels' - Mono: 1, Stereo: 2, and so on.
 /// * 'sample_rate' - Sample rate in Hz (44100, 48000, etc...).
 /// * 'bit_depth' - Bit depth (16, 24, 32, etc...).
-/// * 'num_samples_per_block' - IMA-ADPCM only.
+/// * 'ima_adpcm_num_block_align' - IMA-ADPCM only. IMA-ADPCMの1ブロックが何byteで構成されているか。
+/// * 'ima_adpcm_num_samples_per_block' - IMA-ADPCM only. IMA-ADPCMの1ブロックに何サンプル記録されているか。
 #[derive(Debug, Default)]
 pub(super) struct WavFmtSpecs {
     pub audio_format: AudioFormat,
     pub num_channels: u16,
     pub sample_rate: u32,
     pub bit_depth: u16,
-    pub(crate) num_samples_per_block: Option<u16>,
+    pub(crate) ima_adpcm_num_block_align: Option<u16>,
+    pub(crate) ima_adpcm_num_samples_per_block: Option<u16>,
 }
 
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
@@ -147,7 +149,8 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
                 num_channels,
                 sample_rate,
                 bit_depth,
-                num_samples_per_block: Some(num_samples_per_block),
+                ima_adpcm_num_block_align: Some(num_block_align),
+                ima_adpcm_num_samples_per_block: Some(num_samples_per_block),
             },
         ));
     }
@@ -159,7 +162,8 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
             num_channels,
             sample_rate,
             bit_depth,
-            num_samples_per_block: None,
+            ima_adpcm_num_block_align: None,
+            ima_adpcm_num_samples_per_block: None,
         },
     ))
 }
@@ -191,6 +195,7 @@ mod tests {
             num_channels: 1,
             num_samples: 0,
             sample_rate: 44100,
+            ..Default::default()
         };
 
         let r = calc_num_samples_per_channel(2041, &spec);

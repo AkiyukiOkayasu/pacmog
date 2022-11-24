@@ -7,9 +7,10 @@ use nom::number::complete::{
 };
 use nom::Finish;
 use nom::{multi::many1, IResult};
+use wav::WavFmtSpecs;
 
 mod aiff;
-mod imaadpcm;
+pub mod imaadpcm;
 mod wav;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -29,6 +30,8 @@ pub enum AudioFormat {
 /// * 'sample_rate' - 48000Hz, 44100Hz and so on.
 /// * 'bit_depth' - 16bit, 24bit, 32bit and so on.
 /// * 'num_samples' - Number of samples per channel.
+/// * 'ima_adpcm_num_block_align' - IMA-ADPCM only. IMA-ADPCMの1ブロックが何byteで構成されているか。
+/// * 'ima_adpcm_num_samples_per_block' - IMA-ADPCM only. IMA-ADPCMの1ブロックに何サンプル記録されているか。
 #[derive(Default, Debug, Clone)]
 pub struct PcmSpecs {
     pub audio_format: AudioFormat,
@@ -36,6 +39,8 @@ pub struct PcmSpecs {
     pub sample_rate: u32,
     pub bit_depth: u16,
     pub num_samples: u32,
+    pub(crate) ima_adpcm_num_block_align: Option<u16>,
+    pub(crate) ima_adpcm_num_samples_per_block: Option<u16>,
 }
 
 /// PCMファイルの低レベルな情報を取得するためのクラス
