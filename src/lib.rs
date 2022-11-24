@@ -253,20 +253,27 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32
     }
 }
 
+/// PCMファイルを再生するために高レベルにまとめられたクラス
+/// * 'reader' - PCMファイルの低レベル情報にアクセスするためのクラス
+/// * 'reading_buffer' - 再生中のバッファー。get_next_frame()で使用する。
 #[derive(Default)]
 pub struct PcmPlayer<'a> {
-    reader: PcmReader<'a>,
+    pub reader: PcmReader<'a>,
     reading_data: &'a [u8],
+    loop_playing: bool,
 }
 
 impl<'a> PcmPlayer<'a> {
     /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Self {
         let reader = PcmReader::new(input);
-        return PcmPlayer {
+        let mut player = PcmPlayer {
             reader,
             reading_data: &[],
+            loop_playing: false,
         };
+        player.set_position(0);
+        player
     }
 
     /// 再生位置のセット
@@ -276,11 +283,29 @@ impl<'a> PcmPlayer<'a> {
         self.reading_data = &self.reader.data[byte_offset..];
     }
 
-    pub fn get_next_frame(&mut self, out: &mut [f32]) {
+    /// ループ再生の有効無効設定.
+    /// true: loop enable
+    /// false: loop disable
+    pub fn set_loop_playing(&mut self, en: bool) {
+        self.loop_playing = en;
+    }
+
+    /// 次のサンプル（全チャンネル）を取得.
+    /// * 'out' - サンプルが書き込まれるバッファー
+    pub fn get_next_frame(&mut self, out: &mut [f32]) -> anyhow::Result<()> {
         let byte_depth = self.reader.specs.bit_depth / 8;
 
+        ensure!(
+            out.len() >= self.reader.specs.num_channels as usize,
+            "Invalid output buffer length"
+        );
+
         if self.reading_data.len() <= 0 {
-            panic!();
+            if self.loop_playing {
+                self.set_position(0);
+            } else {
+                bail!("Finished playing");
+            }
         }
 
         for ch in 0..self.reader.specs.num_channels {
@@ -294,5 +319,7 @@ impl<'a> PcmPlayer<'a> {
         //update reading_data
         self.reading_data =
             &self.reading_data[(self.reader.specs.num_channels * byte_depth) as usize..];
+
+        Ok(())
     }
 }

@@ -114,13 +114,58 @@ fn wav_32bit() {
 fn wav_player_32bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
     let mut player = PcmPlayer::new(wav);
+    let spec = player.reader.get_pcm_specs();
     player.set_position(0);
+    player.set_loop_playing(false);
     let mut buffer: [f32; 2] = [0f32, 0f32];
     let b = buffer.as_mut_slice();
 
+    // test first 10 samples
     for i in 0..10 {
-        player.get_next_frame(b);
-        assert_relative_eq!(b[0], SINEWAVE[i as usize]);
+        if let Ok(_) = player.get_next_frame(b) {
+            assert_relative_eq!(b[0], SINEWAVE[i as usize]);
+        }
+    }
+
+    // set_positionが正しいかをtest
+    player.set_position(0);
+    for i in 0..10 {
+        if let Ok(_) = player.get_next_frame(b) {
+            assert_relative_eq!(b[0], SINEWAVE[i as usize]);
+        }
+    }
+
+    player.set_position(0);
+    //末尾まで再生
+    for _ in 0..spec.num_samples {
+        if let Ok(_) = player.get_next_frame(b) {
+            println!("{}", b[0]);
+        }
+    }
+
+    // 末尾まで再生した後は正しくErrを返すかをテスト
+    for _ in 0..10 {
+        let e = player.get_next_frame(b);
+        match e {
+            Ok(_) => assert!(false),
+            Err(_) => continue,
+        }
+    }
+
+    player.set_loop_playing(true);
+    player.set_position(0);
+    // 末尾まで再生
+    for _ in 0..spec.num_samples {
+        if let Ok(_) = player.get_next_frame(b) {
+            println!("{}", b[0]);
+        }
+    }
+
+    // ループ再生が正しく機能するかをtest
+    for i in 0..10 {
+        if let Ok(_) = player.get_next_frame(b) {
+            assert_relative_eq!(b[0], SINEWAVE[i as usize]);
+        }
     }
 }
 
