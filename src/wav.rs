@@ -1,9 +1,10 @@
+use anyhow::ensure;
 use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
 
-use crate::AudioFormat;
+use crate::{AudioFormat, PcmSpecs};
 
 /// WAVのchunkの種類
 #[derive(Debug, PartialEq, Default)]
@@ -94,12 +95,19 @@ pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
     Ok((input, Chunk { id, size, data }))
 }
 
+/// WAVのfmtチャンクから取得できる情報の構造体
+/// * 'audio_format' - LinearPCM or IEEE Float or IMA-ADPCM.
+/// * 'num_channels' - Mono: 1, Stereo: 2, and so on.
+/// * 'sample_rate' - Sample rate in Hz (44100, 48000, etc...).
+/// * 'bit_depth' - Bit depth (16, 24, 32, etc...).
+/// * 'num_samples_per_block' - IMA-ADPCM only.
 #[derive(Debug, Default)]
 pub(super) struct WavFmtSpecs {
     pub audio_format: AudioFormat,
     pub num_channels: u16,
     pub sample_rate: u32,
     pub bit_depth: u16,
+    pub(crate) num_samples_per_block: Option<u16>,
 }
 
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
@@ -139,6 +147,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
                 num_channels,
                 sample_rate,
                 bit_depth,
+                num_samples_per_block: Some(num_samples_per_block),
             },
         ));
     }
@@ -150,6 +159,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
             num_channels,
             sample_rate,
             bit_depth,
+            num_samples_per_block: None,
         },
     ))
 }
@@ -160,8 +170,37 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
 /// * 'num_channels' -
 pub(super) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
-    bit_depth: u16,
-    num_channels: u16,
-) -> u32 {
-    data_chunk_size_in_bytes / (bit_depth / 8u16 * num_channels) as u32
+    spec: &PcmSpecs,
+) -> anyhow::Result<u32> {
+    ensure!(
+        spec.audio_format != AudioFormat::ImaAdpcm,
+        "IMA-ADPCM is not supported in calc_num_samples_per_channel"
+    );
+    Ok(data_chunk_size_in_bytes / (spec.bit_depth / 8u16 * spec.num_channels) as u32)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{wav::calc_num_samples_per_channel, PcmSpecs};
+
+    #[test]
+    fn calc_num_samples() {
+        let spec = PcmSpecs {
+            audio_format: crate::AudioFormat::ImaAdpcm,
+            bit_depth: 4,
+            num_channels: 1,
+            num_samples: 0,
+            sample_rate: 44100,
+        };
+
+        let r = calc_num_samples_per_channel(2041, &spec);
+        match r {
+            Ok(_) => {
+                assert!(false);
+            }
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
+    }
 }

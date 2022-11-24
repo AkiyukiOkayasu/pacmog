@@ -1,5 +1,6 @@
 use core::f32;
 
+use anyhow::{bail, ensure};
 use nom::error::Error;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
@@ -87,14 +88,11 @@ impl<'a> PcmReader<'a> {
                     self.specs.sample_rate = fmt_spec.sample_rate;
                     self.specs.audio_format = fmt_spec.audio_format;
                     self.specs.bit_depth = fmt_spec.bit_depth;
+                    if let Some(v) = fmt_spec.num_samples_per_block {
+                        self.specs.num_samples = v as u32;
+                    }
                 }
                 wav::ChunkId::Data => {
-                    let num_samples = wav::calc_num_samples_per_channel(
-                        e.size,
-                        self.specs.bit_depth,
-                        self.specs.num_channels,
-                    );
-                    self.specs.num_samples = num_samples;
                     self.data = e.data;
                 }
                 wav::ChunkId::Fact => {}
@@ -104,6 +102,12 @@ impl<'a> PcmReader<'a> {
                 wav::ChunkId::PEAK => {}
                 wav::ChunkId::Unknown => {}
             }
+        }
+
+        if let Ok(num_samples) =
+            wav::calc_num_samples_per_channel(self.data.len() as u32, &self.specs)
+        {
+            self.specs.num_samples = num_samples;
         }
         return Ok((input, &[]));
     }
@@ -144,14 +148,9 @@ impl<'a> PcmReader<'a> {
     /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
     /// もしくはf32かf64を選択できるようにする
     /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
-    pub fn read_sample(&self, channel: u32, sample: u32) -> Option<f32> {
-        if channel >= self.specs.num_channels as u32 {
-            return None;
-        }
-
-        if sample >= self.specs.num_samples {
-            return None;
-        }
+    pub fn read_sample(&self, channel: u32, sample: u32) -> anyhow::Result<f32> {
+        ensure!(channel < self.specs.num_channels as u32, "Invalid channel");
+        ensure!(sample < self.specs.num_samples, "Invalid sample");
 
         let byte_depth = self.specs.bit_depth as u32 / 8u32;
         let byte_offset = ((byte_depth * sample * self.specs.num_channels as u32)
@@ -166,30 +165,32 @@ impl<'a> PcmReader<'a> {
 /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
 /// もしくはf32かf64を選択できるようにする
 /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
-pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Option<f32> {
+pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
     match specs.audio_format {
-        AudioFormat::Unknown => return None,
+        AudioFormat::Unknown => {
+            bail!("Unknown audio format");
+        }
         AudioFormat::LinearPcmLe => {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i16::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i24::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i32::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
-                _ => return None,
+                _ => bail!("Unsupported bit-depth"),
             }
         }
         AudioFormat::LinearPcmBe => {
@@ -198,21 +199,21 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Option<f32> {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i16::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i24::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i32::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Some(sample);
+                    return Ok(sample);
                 }
-                _ => return None,
+                _ => bail!("Unsupported bit-depth"),
             }
         }
         AudioFormat::IeeeFloatLe => {
@@ -220,16 +221,14 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Option<f32> {
                 32 => {
                     //32bit float
                     let (_remains, sample) = le_f32::<_, Error<_>>(data).finish().unwrap();
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 64 => {
                     //64bit float
                     let (_remains, sample) = le_f64::<_, Error<_>>(data).finish().unwrap();
-                    return Some(sample as f32); // TODO f32にダウンキャストするべきなのか検討
+                    return Ok(sample as f32); // TODO f32にダウンキャストするべきなのか検討
                 }
-                _ => {
-                    return None;
-                }
+                _ => bail!("Unsupported bit-depth"),
             }
         }
         AudioFormat::IeeeFloatBe => {
@@ -237,20 +236,18 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Option<f32> {
                 32 => {
                     //32bit float
                     let (_remains, sample) = be_f32::<_, Error<_>>(data).finish().unwrap();
-                    return Some(sample);
+                    return Ok(sample);
                 }
                 64 => {
                     //64bit float
                     let (_remains, sample) = be_f64::<_, Error<_>>(data).finish().unwrap();
-                    return Some(sample as f32); // TODO f32にダウンキャストするべきなのか検討
+                    return Ok(sample as f32); // TODO f32にダウンキャストするべきなのか検討
                 }
-                _ => {
-                    return None;
-                }
+                _ => bail!("Unsupported bit-depth"),
             }
         }
         AudioFormat::ImaAdpcm => {
-            todo!();
+            bail!("IMA-ADPCM is not supported in decode_sample(). Use ImaAdpcmPlayer.")
         }
     }
 }
