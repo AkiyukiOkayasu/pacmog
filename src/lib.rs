@@ -38,6 +38,7 @@ pub struct PcmSpecs {
     pub num_samples: u32,
 }
 
+/// PCMファイルの低レベルな情報を取得するためのクラス
 #[derive(Default)]
 pub struct PcmReader<'a> {
     pub(crate) specs: PcmSpecs,
@@ -268,6 +269,7 @@ impl<'a> PcmPlayer<'a> {
         };
     }
 
+    /// 再生位置のセット
     pub fn set_position(&mut self, sample: u32) {
         let byte_depth = self.reader.specs.bit_depth as u32 / 8u32;
         let byte_offset = (byte_depth * sample * self.reader.specs.num_channels as u32) as usize;

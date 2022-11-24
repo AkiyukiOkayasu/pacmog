@@ -165,9 +165,9 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
 }
 
 /// dataチャンクのサイズ情報からサンプル数を求める
-/// * 'data_chunk_size_in_bytes' -
-/// * 'bit_depth' - 16 or 24 or 32 bit
-/// * 'num_channels' -
+/// IMA-ADPCMは非対応。fmtチャンクの拡張属性から取得する必要がある。
+/// * 'data_chunk_size_in_bytes' - dataチャンクのlength (byte)
+/// * 'spec' - PCMファイルの情報
 pub(super) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
