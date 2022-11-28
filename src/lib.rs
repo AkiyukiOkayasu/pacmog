@@ -85,17 +85,21 @@ impl<'a> PcmReader<'a> {
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         //many1はallocが実装されていないと使えない。no_stdで使うなら逐次的に実行するべき。
         let (input, v) = many1(wav::parse_chunk)(input)?;
+        let mut fmt_spec = WavFmtSpecs::default();
 
         for e in v {
             match e.id {
                 wav::ChunkId::Fmt => {
-                    let (_, fmt_spec) = wav::parse_fmt(e.data)?;
+                    let (_, spec) = wav::parse_fmt(e.data)?;
+                    fmt_spec = spec;
                     self.specs.num_channels = fmt_spec.num_channels;
                     self.specs.sample_rate = fmt_spec.sample_rate;
                     self.specs.audio_format = fmt_spec.audio_format;
                     self.specs.bit_depth = fmt_spec.bit_depth;
-                    if let Some(v) = fmt_spec.num_samples_per_block {
-                        self.specs.num_samples = v as u32;
+                    if self.specs.audio_format == AudioFormat::ImaAdpcm {
+                        self.specs.ima_adpcm_num_block_align = fmt_spec.ima_adpcm_num_block_align;
+                        self.specs.ima_adpcm_num_samples_per_block =
+                            fmt_spec.ima_adpcm_num_samples_per_block;
                     }
                 }
                 wav::ChunkId::Data => {
@@ -110,10 +114,19 @@ impl<'a> PcmReader<'a> {
             }
         }
 
-        if let Ok(num_samples) =
-            wav::calc_num_samples_per_channel(self.data.len() as u32, &self.specs)
-        {
-            self.specs.num_samples = num_samples;
+        match self.specs.audio_format {
+            AudioFormat::ImaAdpcm => {
+                self.specs.num_samples =
+                    imaadpcm::calc_num_samples_per_channel(self.data.len() as u32, &self.specs)
+                        .unwrap();
+            }
+            AudioFormat::LinearPcmLe | AudioFormat::IeeeFloatLe => {
+                self.specs.num_samples =
+                    wav::calc_num_samples_per_channel(self.data.len() as u32, &self.specs).unwrap();
+            }
+            _ => {
+                unreachable!();
+            }
         }
         return Ok((input, &[]));
     }

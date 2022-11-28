@@ -123,14 +123,16 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
     };
 
-    let (input, num_channels) = le_u16(input)?;
-    let (input, sample_rate) = le_u32(input)?;
+    let (input, num_channels) = le_u16(input)?; //1
+    let (input, sample_rate) = le_u32(input)?; //48000
     let (input, _bytes_per_seconds) = le_u32(input)?;
-    let (input, block_size) = le_u16(input)?;
+    let (input, block_size) = le_u16(input)?; //1024
     let (input, bit_depth) = le_u16(input)?;
 
     if audio_format == AudioFormat::ImaAdpcm {
         //IMA-ADPCMの拡張属性の取得
+        println!("block size: {}", block_size);
+        let num_block_align = block_size;
         assert!(block_size % 4 == 0);
         assert!(input.len() >= 4);
         let (input, cb_size) = le_u16(input)?; //2

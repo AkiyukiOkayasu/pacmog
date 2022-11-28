@@ -1,7 +1,13 @@
+use core::panic;
+
 use nom::{
-    number::complete::{le_i16, le_u8},
+    number::complete::{le_i16, le_i8, le_u8},
     IResult,
 };
+
+use anyhow::ensure;
+
+use crate::{AudioFormat, PcmReader, PcmSpecs};
 
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
 
@@ -19,13 +25,16 @@ const STEP_SIZE_TABLE: [i16; 89] = [
 /// * 'b_step_table_index' - The current index into the step table array. [0-88]
 #[derive(Default, Debug)]
 pub struct BlockHeader {
-    i_samp_0: i16,
-    b_step_table_index: u8,
+    pub(self) i_samp_0: i16,
+    pub(self) b_step_table_index: i8,
 }
 
+/// IMA-ADPCMのHeader Wordをパースする
+/// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
+    dbg!(input.len());
     let (input, i_samp_0) = le_i16(input)?;
-    let (input, b_step_table_index) = le_u8(input)?;
+    let (input, b_step_table_index) = le_i8(input)?;
     let (input, _reserved) = le_u8(input)?;
 
     Ok((
@@ -37,7 +46,7 @@ pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     ))
 }
 
-/// * 'nibble' - 4bit signed int data
+/// * 'nibble' - 4bit signed int data [-8..+7]
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
 pub(super) fn decode_sample(
@@ -84,9 +93,130 @@ fn compute_step_size(nibble: u8, mut step_size_table_index: i8) -> i8 {
     step_size_table_index
 }
 
+/// サンプル数を計算する.
+pub(crate) fn calc_num_samples_per_channel(
+    data_chunk_size_in_bytes: u32,
+    spec: &PcmSpecs,
+) -> anyhow::Result<u32> {
+    ensure!(spec.audio_format == AudioFormat::ImaAdpcm, "IMA-ADPCM only");
+    let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
+    let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
+    let num_samples = (data_chunk_size_in_bytes / num_block_align) * num_samples_per_block;
+    Ok(num_samples)
+}
+
+/// IMA-ADPCMファイルを再生するために高レベルにまとめられたクラス
+/// * 'reader' - PCMファイルの低レベル情報にアクセスするためのクラス
+/// * 'reading_buffer' - 再生中のバッファー。get_next_frame()で使用する。
+/// * 'loop_playing' - ループ再生するかどうか
+#[derive(Default)]
+pub struct ImaAdpcmPlayer<'a> {
+    pub reader: PcmReader<'a>,
+    frame_index: u32,
+    last_predicted_sample: [i16; 2],
+    step_size_table_index: [i8; 2],
+    reading_block: &'a [u8],
+}
+
+impl<'a> ImaAdpcmPlayer<'a> {
+    /// * 'input' - PCM data byte array
+    pub fn new(input: &'a [u8]) -> Self {
+        let reader = PcmReader::new(input);
+        let player = ImaAdpcmPlayer {
+            reader,
+            frame_index: 0,
+            ..Default::default()
+        };
+        player
+    }
+
+    /// 次のサンプル（全チャンネル）を取得.
+    /// * 'out' - サンプルが書き込まれるバッファー
+    pub fn get_next_frame(&mut self, out: &mut [i16]) -> anyhow::Result<()> {
+        ensure!(
+            out.len() >= self.reader.specs.num_channels as usize,
+            "Invalid output buffer length"
+        );
+
+        let num_channels = self.reader.specs.num_channels;
+        let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
+
+        //IMA-ADPCMのBlock切り替わりかどうか判定
+        if self.frame_index % samples_per_block == 0 {
+            self.update_block();
+        }
+
+        //チャンネル読み出し
+        for ch in 0..num_channels as usize {
+            let nibble = self.get_nibble(ch as u16, self.frame_index);
+            dbg!(nibble);
+            let (predicted_sample, table_index) = decode_sample(
+                nibble,
+                self.last_predicted_sample[ch],
+                self.step_size_table_index[ch],
+            );
+            self.last_predicted_sample[ch] = predicted_sample;
+            self.step_size_table_index[ch] = table_index;
+            out[ch] = predicted_sample;
+        }
+
+        self.frame_index += 1;
+        Ok(())
+    }
+
+    fn update_block(&mut self) {
+        println!("Update block");
+        let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
+        let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
+        let offset = (self.frame_index / samples_per_block) * block_align;
+        dbg!(offset);
+        println!("{}", self.reader.data.len());
+        self.reading_block = &self.reader.data[offset as usize..block_align as usize]; //新しいBlockをreading_blockへ更新
+        for ch in 0..self.reader.specs.num_channels as usize {
+            // BlockのHeader wordを読み出す
+            let (_, block_header) = parse_block_header(&self.reading_block[ch * 4..]).unwrap(); //Headerの1ch分は4byte
+            self.last_predicted_sample[ch] = block_header.i_samp_0;
+            self.step_size_table_index[ch] = block_header.b_step_table_index;
+
+            println!(
+                "Update block: {}ch, {}, {}",
+                ch, self.last_predicted_sample[ch], self.step_size_table_index[ch]
+            );
+        }
+    }
+
+    fn get_nibble(&self, channel: u16, sample: u32) -> u8 {
+        //sampleはblock_per_samplesいないである必要がある
+
+        // println!("get_nibble() ch: {}, samp: {}", channel, sample);
+        let num_channels = self.reader.specs.num_channels;
+        let header_offset = 4 * num_channels; //Headerの1ch分は4byte
+        let num_samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap();
+        let sample = sample % num_samples_per_block as u32; //[0..num_samples_per_block]
+        let index = (channel as u32 * sample) / 2;
+        let lower4bit = index % 2 == 0;
+        let byte = self.reading_block[header_offset as usize + index as usize];
+        let nibble = u8_to_nibble(byte, lower4bit);
+        nibble
+    }
+}
+
+fn u8_to_nibble(v: u8, lower4bit: bool) -> u8 {
+    let v = if lower4bit {
+        //下位4bit
+        v & 0b00001111u8
+    } else {
+        //上位4bit
+        (v >> 4) & 0b00001111u8
+    };
+    v
+}
+
 #[cfg(test)]
 mod tests {
     use crate::imaadpcm::decode_sample;
+
+    use super::u8_to_nibble;
 
     #[test]
     fn ima_adpcm_decode() {
@@ -94,4 +224,20 @@ mod tests {
         assert_eq!(sample, -30913); //0x873F
         assert_eq!(step_size_table_index, 23);
     }
+
+    #[test]
+    fn nibble() {
+        let t = 1u8;
+        let o = u8_to_nibble(t, true);
+        assert_eq!(o, 1u8);
+        let t = 4u8;
+        let o = u8_to_nibble(t, true);
+        assert_eq!(o, 4);
+        let t = 7u8;
+        let o = u8_to_nibble(t, true);
+        assert_eq!(o, 7);
+    }
 }
+
+//HeaderBlock 4byte*num_channel
+//DataBlock 0.5byte*num_channel*num_samples_per_block

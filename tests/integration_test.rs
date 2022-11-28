@@ -1,6 +1,6 @@
 use approx::assert_relative_eq;
 use fixed::types::I1F15;
-use pacmog::{AudioFormat, PcmPlayer, PcmReader};
+use pacmog::{imaadpcm::ImaAdpcmPlayer, AudioFormat, PcmPlayer, PcmReader};
 
 const SINEWAVE: [f32; 10] = [
     0f32,
@@ -157,7 +157,7 @@ fn wav_player_32bit() {
     //末尾まで再生
     for _ in 0..spec.num_samples {
         if let Ok(_) = player.get_next_frame(b) {
-            println!("{}", b[0]);
+            // println!("{}", b[0]);
         }
     }
 
@@ -175,7 +175,7 @@ fn wav_player_32bit() {
     // 末尾まで再生
     for _ in 0..spec.num_samples {
         if let Ok(_) = player.get_next_frame(b) {
-            println!("{}", b[0]);
+            // println!("{}", b[0]);
         }
     }
 
@@ -313,14 +313,23 @@ fn aiff_64bit_float() {
 #[test]
 fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let reader = PcmReader::new(data);
+    let mut player = ImaAdpcmPlayer::new(data);
+    // let reader = PcmReader::new(data);
+    let spec = player.reader.get_pcm_specs();
+    assert_eq!(spec.num_samples, 240838);
+    assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcm);
+    assert_eq!(spec.bit_depth, 4);
+
+    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let buf = buffer.as_mut_slice();
 
     for i in 0..10 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(
-            sample,
-            SINEWAVE[i as usize],
-            epsilon = f32::EPSILON * 200f32
-        );
+        player.get_next_frame(buf).unwrap();
+        let s = buf[0] as f32 / i16::MAX as f32;
+        println!("{}, {}", s, SINEWAVE[i as usize]);
+        // assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = f32::EPSILON * 5000f32);
     }
+    assert!(false);
 }
