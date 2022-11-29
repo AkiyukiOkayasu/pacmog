@@ -185,16 +185,20 @@ impl<'a> ImaAdpcmPlayer<'a> {
         }
     }
 
+    ///
+    /// * 'channel' -
+    /// * 'sample' - [0 <= sample < block_per_sample]
     fn get_nibble(&self, channel: u16, sample: u32) -> u8 {
-        //sampleはblock_per_samplesいないである必要がある
-
-        // println!("get_nibble() ch: {}, samp: {}", channel, sample);
+        println!("get_nibble() ch: {}, samp: {}", channel, sample);
         let num_channels = self.reader.specs.num_channels;
         let header_offset = 4 * num_channels; //Headerの1ch分は4byte
         let num_samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap();
-        let sample = sample % num_samples_per_block as u32; //[0..num_samples_per_block]
-        let index = (channel as u32 * sample) / 2;
-        let lower4bit = index % 2 == 0;
+        let sample = sample % num_samples_per_block as u32; //[0..num_samples_per_block]に丸める
+        dbg!(sample);
+        let index = (num_channels as u32 * sample) / 2;
+        dbg!(index);
+        let lower4bit = (num_channels as u32 * sample) % 2 == 0;
+        dbg!(lower4bit);
         let byte = self.reading_block[header_offset as usize + index as usize];
         let nibble = u8_to_nibble(byte, lower4bit);
         nibble
