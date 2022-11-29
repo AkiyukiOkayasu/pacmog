@@ -27,6 +27,7 @@ fn main() {
                     player.get_next_frame(buf).unwrap();
                     for (ch, sample) in frame.iter_mut().enumerate() {
                         *sample = buf[ch] as f32 / i16::MAX as f32;
+                        dbg!(*sample);
                     }
                 }
             },
@@ -35,5 +36,5 @@ fn main() {
         .unwrap();
     stream.play().unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    std::thread::sleep(std::time::Duration::from_millis(10));
 }

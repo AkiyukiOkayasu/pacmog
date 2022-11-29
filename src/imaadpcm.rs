@@ -32,7 +32,7 @@ pub struct BlockHeader {
 /// IMA-ADPCMのHeader Wordをパースする
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
-    dbg!(input.len());
+    // dbg!(input.len());
     let (input, i_samp_0) = le_i16(input)?;
     let (input, b_step_table_index) = le_i8(input)?;
     let (input, _reserved) = le_u8(input)?;
@@ -101,7 +101,8 @@ pub(crate) fn calc_num_samples_per_channel(
     ensure!(spec.audio_format == AudioFormat::ImaAdpcm, "IMA-ADPCM only");
     let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
     let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
-    let num_samples = (data_chunk_size_in_bytes / num_block_align) * num_samples_per_block;
+    let num_blocks = data_chunk_size_in_bytes / num_block_align;
+    let num_samples = num_blocks * num_samples_per_block;
     Ok(num_samples)
 }
 
@@ -144,12 +145,19 @@ impl<'a> ImaAdpcmPlayer<'a> {
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.frame_index % samples_per_block == 0 {
             self.update_block();
+            for ch in 0..num_channels as usize {
+                out[ch] = self.last_predicted_sample[ch];
+            }
+            self.frame_index += 1; //Blockの最初のサンプルはHeaderに記録されている
+            return Ok(());
         }
 
         //チャンネル読み出し
         for ch in 0..num_channels as usize {
-            let nibble = self.get_nibble(ch as u16, self.frame_index);
-            dbg!(nibble);
+            let nibble = self
+                .get_nibble(ch as u16, self.frame_index % samples_per_block)
+                .unwrap();
+            // dbg!(nibble);
             let (predicted_sample, table_index) = decode_sample(
                 nibble,
                 self.last_predicted_sample[ch],
@@ -165,43 +173,57 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 
     fn update_block(&mut self) {
-        println!("Update block");
+        // println!("Update block");
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
         let offset = (self.frame_index / samples_per_block) * block_align;
-        dbg!(offset);
-        dbg!(self.reader.data.len());
-        self.reading_block = &self.reader.data[offset as usize..block_align as usize]; //新しいBlockをreading_blockへ更新
+        // dbg!(offset);
+        // dbg!(self.reader.data.len());
+        self.reading_block = &self.reader.data[offset as usize..(offset + block_align) as usize]; //新しいBlockをreading_blockへ更新
+        assert_eq!(self.reading_block.len(), block_align as usize);
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
             let (_, block_header) = parse_block_header(&self.reading_block[ch * 4..]).unwrap(); //Headerの1ch分は4byte
             self.last_predicted_sample[ch] = block_header.i_samp_0;
             self.step_size_table_index[ch] = block_header.b_step_table_index;
 
-            println!(
-                "Update block: {}ch, {}, {}",
-                ch, self.last_predicted_sample[ch], self.step_size_table_index[ch]
-            );
+            // println!(
+            //     "Update block: {}ch, {}, {}",
+            //     ch, self.last_predicted_sample[ch], self.step_size_table_index[ch]
+            // );
         }
     }
 
-    ///
-    /// * 'channel' -
-    /// * 'sample' - [0 <= sample < block_per_sample]
-    fn get_nibble(&self, channel: u16, sample: u32) -> u8 {
-        println!("get_nibble() ch: {}, samp: {}", channel, sample);
+    /// Get nibble from current block.
+    /// * 'channel' - [0, 1]
+    /// * 'frame_index_in_block' - [0..num_samples_per_block]
+    fn get_nibble(&self, channel: u16, frame_index_in_block: u32) -> Option<u8> {
+        let num_samples_per_block =
+            self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let num_channels = self.reader.specs.num_channels;
         let header_offset = 4 * num_channels; //Headerの1ch分は4byte
-        let num_samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap();
-        let sample = sample % num_samples_per_block as u32; //[0..num_samples_per_block]に丸める
-        dbg!(sample);
-        let index = (num_channels as u32 * sample) / 2;
-        dbg!(index);
-        let lower4bit = (num_channels as u32 * sample) % 2 == 0;
-        dbg!(lower4bit);
+        if frame_index_in_block >= num_samples_per_block {
+            panic!();
+        }
+
+        if frame_index_in_block == 0 {
+            //0サンプル目はヘッダーに16bitで記録されているのでnibbleは無い
+            return None;
+        }
+
+        // println!(
+        //     "get_nibble() ch: {}, samp: {}",
+        //     channel, frame_index_in_block
+        // );
+        let frame_index_in_block = frame_index_in_block - 1; //Block最初のサンプルはHeaderに16bitで記録されているので1を引く
+                                                             // dbg!(frame_index_in_block);
+        let index = (num_channels as u32 * frame_index_in_block) / 2;
+        // dbg!(index);
+        let lower4bit = (num_channels as u32 * frame_index_in_block) % 2 == 0;
+        // dbg!(lower4bit);
         let byte = self.reading_block[header_offset as usize + index as usize];
         let nibble = u8_to_nibble(byte, lower4bit);
-        nibble
+        Some(nibble)
     }
 }
 

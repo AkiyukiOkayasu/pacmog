@@ -1,4 +1,5 @@
 use approx::assert_relative_eq;
+use criterion::black_box;
 use fixed::types::I1F15;
 use pacmog::{imaadpcm::ImaAdpcmPlayer, AudioFormat, PcmPlayer, PcmReader};
 
@@ -156,9 +157,7 @@ fn wav_player_32bit() {
     player.set_position(0);
     //末尾まで再生
     for _ in 0..spec.num_samples {
-        if let Ok(_) = player.get_next_frame(b) {
-            // println!("{}", b[0]);
-        }
+        if let Ok(_) = player.get_next_frame(b) {}
     }
 
     // 末尾まで再生した後は正しくErrを返すかをテスト
@@ -174,9 +173,7 @@ fn wav_player_32bit() {
     player.set_position(0);
     // 末尾まで再生
     for _ in 0..spec.num_samples {
-        if let Ok(_) = player.get_next_frame(b) {
-            // println!("{}", b[0]);
-        }
+        if let Ok(_) = player.get_next_frame(b) {}
     }
 
     // ループ再生が正しく機能するかをtest
@@ -314,8 +311,8 @@ fn aiff_64bit_float() {
 fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
-    // let reader = PcmReader::new(data);
     let spec = player.reader.get_pcm_specs();
+    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
@@ -325,10 +322,11 @@ fn ima_adpcm_4bit() {
     let mut buffer: [i16; 2] = [0i16, 0i16];
     let buf = buffer.as_mut_slice();
 
-    for i in 0..10 {
+    for i in 0..20 {
         player.get_next_frame(buf).unwrap();
         let s = buf[0] as f32 / i16::MAX as f32;
-        println!("{}, {}", s, SINEWAVE[i as usize]);
+        dbg!(s, i);
+        // println!("{}, {}", s, SINEWAVE[i as usize]);
         // assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = f32::EPSILON * 5000f32);
     }
     assert!(false);
