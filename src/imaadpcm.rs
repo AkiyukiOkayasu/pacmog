@@ -170,7 +170,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
         let offset = (self.frame_index / samples_per_block) * block_align;
         dbg!(offset);
-        println!("{}", self.reader.data.len());
+        dbg!(self.reader.data.len());
         self.reading_block = &self.reader.data[offset as usize..block_align as usize]; //新しいBlockをreading_blockへ更新
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す

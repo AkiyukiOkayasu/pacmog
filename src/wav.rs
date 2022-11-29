@@ -206,7 +206,7 @@ mod tests {
                 assert!(false);
             }
             Err(e) => {
-                println!("{:?}", e);
+                dbg!(e);
             }
         }
     }

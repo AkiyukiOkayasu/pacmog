@@ -58,7 +58,7 @@ impl<'a> PcmReader<'a> {
             match e.id {
                 aiff::ChunkId::Common => {
                     let (_, spec) = aiff::parse_comm(e.data)?;
-                    println!("{:?}", spec);
+                    dbg!(&spec);
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
