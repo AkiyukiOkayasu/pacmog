@@ -16,6 +16,8 @@ fn main() {
     let reader = PcmReader::new(wav);
     let mut sample_index = 0;
 
+    println!("PCM spec: {:?}", reader.get_pcm_specs());
+
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
     let stream = device
         .build_output_stream(

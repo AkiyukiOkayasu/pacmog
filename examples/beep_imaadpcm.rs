@@ -14,8 +14,7 @@ fn main() {
     println!("Default output config: {:?}", config);
     let channels = config.channels() as usize;
 
-    let spec = player.reader.get_pcm_specs();
-    println!("PCM spec: {:?}", spec);
+    println!("PCM spec: {:?}", player.reader.get_pcm_specs());
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
     let stream = device
