@@ -1,5 +1,4 @@
 use approx::assert_relative_eq;
-use criterion::black_box;
 use fixed::types::I1F15;
 use pacmog::{imaadpcm::ImaAdpcmPlayer, AudioFormat, PcmPlayer, PcmReader};
 
