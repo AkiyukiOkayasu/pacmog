@@ -9,9 +9,10 @@ use anyhow::ensure;
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 
+/// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
 
-/// quantizer lookup table
+/// Quantizer lookup table for decode IMA-ADPCM.
 const STEP_SIZE_TABLE: [i16; 89] = [
     7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66,
     73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449,
@@ -20,7 +21,7 @@ const STEP_SIZE_TABLE: [i16; 89] = [
     10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767,
 ];
 
-///
+/// IMA-ADPCMの各ブロックのHeaderから読み出す情報.
 /// * 'i_samp_0' - The first sample value of the block. When decoding, this will be used as the previous sample to start decoding with.
 /// * 'b_step_table_index' - The current index into the step table array. [0-88]
 #[derive(Default, Debug)]
@@ -32,7 +33,6 @@ pub struct BlockHeader {
 /// IMA-ADPCMのHeader Wordをパースする
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
-    // dbg!(input.len());
     let (input, i_samp_0) = le_i16(input)?;
     let (input, b_step_table_index) = le_i8(input)?;
     let (input, _reserved) = le_u8(input)?;
@@ -157,7 +157,6 @@ impl<'a> ImaAdpcmPlayer<'a> {
             let nibble = self
                 .get_nibble(ch as u16, self.frame_index % samples_per_block)
                 .unwrap();
-            // dbg!(nibble);
             let (predicted_sample, table_index) = decode_sample(
                 nibble,
                 self.last_predicted_sample[ch],
@@ -172,25 +171,20 @@ impl<'a> ImaAdpcmPlayer<'a> {
         Ok(())
     }
 
+    /// IMA-ADPCMのブロック更新.
+    ///
     fn update_block(&mut self) {
-        // println!("Update block");
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
         let offset = (self.frame_index / samples_per_block) * block_align;
-        // dbg!(offset);
-        // dbg!(self.reader.data.len());
         self.reading_block = &self.reader.data[offset as usize..(offset + block_align) as usize]; //新しいBlockをreading_blockへ更新
         assert_eq!(self.reading_block.len(), block_align as usize);
+
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
             let (_, block_header) = parse_block_header(&self.reading_block[ch * 4..]).unwrap(); //Headerの1ch分は4byte
             self.last_predicted_sample[ch] = block_header.i_samp_0;
             self.step_size_table_index[ch] = block_header.b_step_table_index;
-
-            // println!(
-            //     "Update block: {}ch, {}, {}",
-            //     ch, self.last_predicted_sample[ch], self.step_size_table_index[ch]
-            // );
         }
     }
 
@@ -211,16 +205,9 @@ impl<'a> ImaAdpcmPlayer<'a> {
             return None;
         }
 
-        // println!(
-        //     "get_nibble() ch: {}, samp: {}",
-        //     channel, frame_index_in_block
-        // );
         let frame_index_in_block = frame_index_in_block - 1; //Block最初のサンプルはHeaderに16bitで記録されているので1を引く
-                                                             // dbg!(frame_index_in_block);
         let index = (num_channels as u32 * frame_index_in_block) / 2;
-        // dbg!(index);
         let lower4bit = (num_channels as u32 * frame_index_in_block) % 2 == 0;
-        // dbg!(lower4bit);
         let byte = self.reading_block[header_offset as usize + index as usize];
         let nibble = u8_to_nibble(byte, lower4bit);
         Some(nibble)
@@ -264,6 +251,3 @@ mod tests {
         assert_eq!(o, 7);
     }
 }
-
-//HeaderBlock 4byte*num_channel
-//DataBlock 0.5byte*num_channel*num_samples_per_block

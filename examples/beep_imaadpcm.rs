@@ -21,13 +21,11 @@ fn main() {
         .build_output_stream(
             &config.into(),
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                // write_data(data, channels, &mut next_value)
                 for frame in data.chunks_mut(channels) {
                     let buf = buffer.as_mut_slice();
                     player.get_next_frame(buf).unwrap();
                     for (ch, sample) in frame.iter_mut().enumerate() {
-                        *sample = buf[ch] as f32 / i16::MAX as f32;
-                        dbg!(*sample);
+                        *sample = buf[0] as f32 / i16::MAX as f32;
                     }
                 }
             },
@@ -36,5 +34,5 @@ fn main() {
         .unwrap();
     stream.play().unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(10));
+    std::thread::sleep(std::time::Duration::from_millis(1000));
 }
