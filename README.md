@@ -1,5 +1,7 @@
 # pacmog
 
+![test](https://github.com/AkiyukiOkayasu/pacmog/actions/workflows/rust.yml/badge.svg)
+
 include_bytes!で埋め込んだWAVEファイルをデコードするためのライブラリ。  
 マイコンのファームウェアに効果音を埋め込むなどの利用を想定。  
 no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパースをしている。  
