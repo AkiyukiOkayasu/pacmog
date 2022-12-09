@@ -20,3 +20,7 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Run examples
+      run: |
+        cargo build --example beep
+        cargo build --example beep_imaadpcm      
