@@ -1,5 +1,4 @@
 use approx::assert_relative_eq;
-use criterion::black_box;
 use fixed::types::I1F15;
 use pacmog::{imaadpcm::ImaAdpcmPlayer, AudioFormat, PcmPlayer, PcmReader};
 
@@ -322,12 +321,9 @@ fn ima_adpcm_4bit() {
     let mut buffer: [i16; 2] = [0i16, 0i16];
     let buf = buffer.as_mut_slice();
 
-    for i in 0..20 {
+    for i in 0..10 {
         player.get_next_frame(buf).unwrap();
         let s = buf[0] as f32 / i16::MAX as f32;
-        dbg!(s, i);
-        // println!("{}, {}", s, SINEWAVE[i as usize]);
-        // assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = f32::EPSILON * 5000f32);
+        assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = 0.3f32);
     }
-    assert!(false);
 }
