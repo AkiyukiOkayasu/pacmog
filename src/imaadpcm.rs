@@ -74,7 +74,7 @@ pub(super) fn decode_sample(
 
     // account for sign bit
     if (nibble & 8) == 8 {
-        diff -= diff;
+        diff = -diff;
     }
 
     let mut predicted_sample = last_predicted_sample as i32 + diff; // adjust predicted sample based on calculated difference:
