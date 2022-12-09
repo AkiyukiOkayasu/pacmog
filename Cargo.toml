@@ -11,7 +11,7 @@ fixed = "1.20.0"
 nom = "7.1.1"
 
 [dev-dependencies]
-cpal = "0.14.1"
+cpal = "0.14.2"
 approx = "0.5.1"
 criterion = "0.4"
 
