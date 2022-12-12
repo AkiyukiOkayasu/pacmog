@@ -134,13 +134,15 @@ impl<'a> ImaAdpcmPlayer<'a> {
     /// 次のサンプル（全チャンネル）を取得.
     /// * 'out' - サンプルが書き込まれるバッファー
     pub fn get_next_frame(&mut self, out: &mut [i16]) -> anyhow::Result<()> {
+        let num_channels = self.reader.specs.num_channels;
+        let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
+
         ensure!(
-            out.len() >= self.reader.specs.num_channels as usize,
+            out.len() >= num_channels as usize,
             "Invalid output buffer length"
         );
 
-        let num_channels = self.reader.specs.num_channels;
-        let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
+        ensure!(self.frame_index <= samples_per_block, "Invalid frame_index");
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.frame_index % samples_per_block == 0 {
