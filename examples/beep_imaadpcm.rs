@@ -24,7 +24,7 @@ fn main() {
                 for frame in data.chunks_mut(channels) {
                     let buf = buffer.as_mut_slice();
                     player.get_next_frame(buf).unwrap();
-                    for (ch, sample) in frame.iter_mut().enumerate() {
+                    for (_ch, sample) in frame.iter_mut().enumerate() {
                         *sample = buf[0] as f32 / i16::MAX as f32;
                     }
                 }

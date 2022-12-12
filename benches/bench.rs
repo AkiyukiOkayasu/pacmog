@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pacmog::imaadpcm::ImaAdpcmPlayer;
 use pacmog::PcmReader;
 
@@ -6,7 +6,7 @@ fn parse_wav(c: &mut Criterion) {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
     c.bench_function("Parse WAV 16bit", |b| {
         b.iter(|| {
-            let _reader = PcmReader::new(wav);
+            let _reader = PcmReader::new(black_box(wav));
         })
     });
 }
