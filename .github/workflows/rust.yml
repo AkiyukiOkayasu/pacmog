@@ -16,13 +16,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
     - uses: Swatinem/rust-cache@v2
     - name: install libasound2-dev
       run: sudo apt install libasound2-dev
+    - name: Print Rust version
+      run: rustc --version
     - name: Build
       run: cargo build --verbose
     - name: Run tests
