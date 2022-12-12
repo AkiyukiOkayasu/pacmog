@@ -7,7 +7,6 @@ use nom::number::complete::{
 };
 use nom::Finish;
 use nom::{multi::many1, IResult};
-use wav::WavFmtSpecs;
 
 mod aiff;
 pub mod imaadpcm;
@@ -61,7 +60,9 @@ impl<'a> PcmReader<'a> {
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
-                    let (data, _ssnd_block_info) = aiff::parse_ssnd(e.data)?; //TODO ssnd_block_infoのoffset, blockSizeが0でないときの対応追加
+                    let (data, ssnd_block_info) = aiff::parse_ssnd(e.data)?;
+                    assert_eq!(ssnd_block_info.offset, 0);
+                    assert_eq!(ssnd_block_info.block_size, 0);
                     self.data = data;
                 }
                 aiff::ChunkId::FormatVersion => {}
@@ -84,21 +85,19 @@ impl<'a> PcmReader<'a> {
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         //many1はallocが実装されていないと使えない。no_stdで使うなら逐次的に実行するべき。
         let (input, v) = many1(wav::parse_chunk)(input)?;
-        let mut fmt_spec = WavFmtSpecs::default();
 
         for e in v {
             match e.id {
                 wav::ChunkId::Fmt => {
                     let (_, spec) = wav::parse_fmt(e.data)?;
-                    fmt_spec = spec;
-                    self.specs.num_channels = fmt_spec.num_channels;
-                    self.specs.sample_rate = fmt_spec.sample_rate;
-                    self.specs.audio_format = fmt_spec.audio_format;
-                    self.specs.bit_depth = fmt_spec.bit_depth;
+                    self.specs.num_channels = spec.num_channels;
+                    self.specs.sample_rate = spec.sample_rate;
+                    self.specs.audio_format = spec.audio_format;
+                    self.specs.bit_depth = spec.bit_depth;
                     if self.specs.audio_format == AudioFormat::ImaAdpcm {
-                        self.specs.ima_adpcm_num_block_align = fmt_spec.ima_adpcm_num_block_align;
+                        self.specs.ima_adpcm_num_block_align = spec.ima_adpcm_num_block_align;
                         self.specs.ima_adpcm_num_samples_per_block =
-                            fmt_spec.ima_adpcm_num_samples_per_block;
+                            spec.ima_adpcm_num_samples_per_block;
                     }
                 }
                 wav::ChunkId::Data => {

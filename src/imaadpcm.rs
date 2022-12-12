@@ -109,7 +109,6 @@ pub(crate) fn calc_num_samples_per_channel(
 /// IMA-ADPCMファイルを再生するために高レベルにまとめられたクラス
 /// * 'reader' - PCMファイルの低レベル情報にアクセスするためのクラス
 /// * 'reading_buffer' - 再生中のバッファー。get_next_frame()で使用する。
-/// * 'loop_playing' - ループ再生するかどうか
 #[derive(Default)]
 pub struct ImaAdpcmPlayer<'a> {
     pub reader: PcmReader<'a>,
@@ -173,8 +172,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         Ok(())
     }
 
-    /// IMA-ADPCMのブロック更新.
-    ///
+    /// IMA-ADPCMのブロック更新.    
     fn update_block(&mut self) {
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
