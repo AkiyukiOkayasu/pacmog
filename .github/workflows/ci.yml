@@ -1,4 +1,4 @@
-name: Rust
+name: CI
 
 on:
   push:
@@ -17,6 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
+    - uses: taiki-e/install-action@cargo-llvm-cov
     - name: install libasound2-dev
       run: sudo apt install libasound2-dev
     - name: Print Rust version
@@ -28,4 +29,6 @@ jobs:
     - name: Run examples
       run: |
         cargo build --example beep
-        cargo build --example beep_imaadpcm      
+        cargo build --example beep_imaadpcm
+    - name: Code coverage
+      run: cargo llvm-cov
