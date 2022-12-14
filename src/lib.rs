@@ -13,7 +13,7 @@ pub mod imaadpcm;
 mod wav;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub enum AudioFormat {
+pub(crate) enum AudioFormat {
     #[default]
     Unknown,
     LinearPcmLe,
