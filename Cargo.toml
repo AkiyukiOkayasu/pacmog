@@ -1,9 +1,15 @@
 [package]
 name = "pacmog"
 version = "0.1.0"
+authors = ["Akiyuki Okayasu <akiyuki.okayasu@gmail.com>"]
+description = "PCM parser"
+categories = ["audio", "no-std"]
+keywords = ["audio", "wav"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/AkiyukiOkayasu/pacmog"
+readme = "README.md"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.65"
 
 [dependencies]
 anyhow = {version = "1.0", default-features = false }
