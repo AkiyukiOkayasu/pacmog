@@ -1,6 +1,7 @@
-use core::f32;
+//! Decode PCM files for embedded.
 
 use anyhow::{bail, ensure};
+use core::f32;
 use nom::error::Error;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
@@ -12,15 +13,22 @@ mod aiff;
 pub mod imaadpcm;
 mod wav;
 
+/// TODO 説明
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum AudioFormat {
+    /// Unknown format
     #[default]
     Unknown,
+    /// Linear PCM little endian    
     LinearPcmLe,
+    /// Linear PCM big endian
     LinearPcmBe,
+    /// IEEE float big endian
     IeeeFloatLe,
+    /// IEEE float little endian
     IeeeFloatBe,
-    ImaAdpcm,
+    /// IMA-ADPCM little endian
+    ImaAdpcmLe,
 }
 
 /// PCMファイルの情報.
@@ -54,6 +62,7 @@ impl<'a> PcmReader<'a> {
         let (input, v) = many1(aiff::parse_chunk)(input)?;
 
         for e in v {
+            assert_ne!(e.size, 0);
             match e.id {
                 aiff::ChunkId::Common => {
                     let (_, spec) = aiff::parse_comm(e.data)?;
@@ -61,7 +70,7 @@ impl<'a> PcmReader<'a> {
                 }
                 aiff::ChunkId::SoundData => {
                     let (data, ssnd_block_info) = aiff::parse_ssnd(e.data)?;
-                    assert_eq!(ssnd_block_info.offset, 0);
+                    assert_eq!(ssnd_block_info.offset, 0); //offsetとblock_sizeはほとんどの場合で0固定。したがって0で指定されたファイルにのみ対応する。
                     assert_eq!(ssnd_block_info.block_size, 0);
                     self.data = data;
                 }
@@ -87,6 +96,7 @@ impl<'a> PcmReader<'a> {
         let (input, v) = many1(wav::parse_chunk)(input)?;
 
         for e in v {
+            assert_ne!(e.size, 0);
             match e.id {
                 wav::ChunkId::Fmt => {
                     let (_, spec) = wav::parse_fmt(e.data)?;
@@ -94,7 +104,7 @@ impl<'a> PcmReader<'a> {
                     self.specs.sample_rate = spec.sample_rate;
                     self.specs.audio_format = spec.audio_format;
                     self.specs.bit_depth = spec.bit_depth;
-                    if self.specs.audio_format == AudioFormat::ImaAdpcm {
+                    if self.specs.audio_format == AudioFormat::ImaAdpcmLe {
                         self.specs.ima_adpcm_num_block_align = spec.ima_adpcm_num_block_align;
                         self.specs.ima_adpcm_num_samples_per_block =
                             spec.ima_adpcm_num_samples_per_block;
@@ -113,7 +123,7 @@ impl<'a> PcmReader<'a> {
         }
 
         match self.specs.audio_format {
-            AudioFormat::ImaAdpcm => {
+            AudioFormat::ImaAdpcmLe => {
                 self.specs.num_samples =
                     imaadpcm::calc_num_samples_per_channel(self.data.len() as u32, &self.specs)
                         .unwrap();
@@ -263,7 +273,7 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32
                 _ => bail!("Unsupported bit-depth"),
             }
         }
-        AudioFormat::ImaAdpcm => {
+        AudioFormat::ImaAdpcmLe => {
             bail!("IMA-ADPCM is not supported in decode_sample(). Use ImaAdpcmPlayer.")
         }
     }
