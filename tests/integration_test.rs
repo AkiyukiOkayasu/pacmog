@@ -315,7 +315,7 @@ fn ima_adpcm_4bit() {
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcm);
+    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
     assert_eq!(spec.bit_depth, 4);
 
     let mut buffer: [i16; 2] = [0i16, 0i16];

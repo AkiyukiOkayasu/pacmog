@@ -1,10 +1,9 @@
+use crate::{AudioFormat, PcmSpecs};
 use anyhow::ensure;
 use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
-
-use crate::{AudioFormat, PcmSpecs};
 
 /// WAVのchunkの種類
 #[derive(Debug, PartialEq, Default)]
@@ -120,7 +119,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
     let audio_format = match wave_format_tag.try_into().unwrap() {
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
         WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
-        WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcm,
+        WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcmLe,
     };
 
     let (input, num_channels) = le_u16(input)?; //1
@@ -129,7 +128,7 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
     let (input, block_size) = le_u16(input)?; //1024
     let (input, bit_depth) = le_u16(input)?;
 
-    if audio_format == AudioFormat::ImaAdpcm {
+    if audio_format == AudioFormat::ImaAdpcmLe {
         //IMA-ADPCMの拡張属性の取得
         println!("block size: {}", block_size);
         let num_block_align = block_size;
@@ -179,7 +178,7 @@ pub(super) fn calc_num_samples_per_channel(
     spec: &PcmSpecs,
 ) -> anyhow::Result<u32> {
     ensure!(
-        spec.audio_format != AudioFormat::ImaAdpcm,
+        spec.audio_format != AudioFormat::ImaAdpcmLe,
         "IMA-ADPCM is not supported in calc_num_samples_per_channel"
     );
     Ok(data_chunk_size_in_bytes / (spec.bit_depth / 8u16 * spec.num_channels) as u32)
@@ -192,7 +191,7 @@ mod tests {
     #[test]
     fn calc_num_samples() {
         let spec = PcmSpecs {
-            audio_format: crate::AudioFormat::ImaAdpcm,
+            audio_format: crate::AudioFormat::ImaAdpcmLe,
             bit_depth: 4,
             num_channels: 1,
             num_samples: 0,

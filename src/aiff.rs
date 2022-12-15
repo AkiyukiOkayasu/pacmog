@@ -1,9 +1,9 @@
+use crate::{AudioFormat, PcmSpecs};
 use core::convert::TryInto;
+use nom::branch::alt;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{be_i16, be_i32, be_u32};
 use nom::IResult;
-
-use crate::{AudioFormat, PcmSpecs};
 
 /// ckID chunkの種類
 #[derive(Debug, PartialEq, Default)]
@@ -86,34 +86,10 @@ pub(super) struct Chunk<'a> {
     pub data: &'a [u8],
 }
 
-pub(super) enum AiffIdentifier {
-    Aiff,  //b"AIFF"
-    AiffC, //b"AIFC" AIFF-C
-}
-
-impl TryFrom<&[u8]> for AiffIdentifier {
-    type Error = ();
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        if v.len() != 4 {
-            return Err(());
-        }
-
-        match v {
-            b"AIFF" => Ok(AiffIdentifier::Aiff),
-            b"AIFC" => Ok(AiffIdentifier::AiffC),
-            _ => Err(()),
-        }
-    }
-}
-
 /// AIFFチャンクの情報
-///
 /// * 'size' - ファイルサイズ(byte) - 8
-/// * 'id' - RIFFの識別子 基本"WAVE"
 pub(super) struct AiffHeader {
     pub size: u32,
-    pub id: AiffIdentifier,
 }
 
 /// SSNDチャンクのOffset, BlockSize
@@ -131,9 +107,8 @@ pub(super) struct SsndBlockInfo {
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     let (input, _) = tag(b"FORM")(input)?;
     let (input, size) = be_u32(input)?;
-    let (input, id) = take(4usize)(input)?;
-    let id: AiffIdentifier = id.try_into().unwrap();
-    Ok((input, AiffHeader { size, id }))
+    let (input, _id) = alt((tag(b"AIFF"), tag(b"AIFC")))(input)?;
+    Ok((input, AiffHeader { size }))
 }
 
 /// 先頭のチャンクを取得する

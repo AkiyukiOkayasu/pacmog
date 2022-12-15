@@ -1,13 +1,12 @@
-use core::panic;
+//! Decode IMA-ADPCM
 
+use crate::{AudioFormat, PcmReader, PcmSpecs};
+use anyhow::ensure;
+use core::panic;
 use nom::{
     number::complete::{le_i16, le_i8, le_u8},
     IResult,
 };
-
-use anyhow::ensure;
-
-use crate::{AudioFormat, PcmReader, PcmSpecs};
 
 /// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
@@ -98,7 +97,10 @@ pub(crate) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
 ) -> anyhow::Result<u32> {
-    ensure!(spec.audio_format == AudioFormat::ImaAdpcm, "IMA-ADPCM only");
+    ensure!(
+        spec.audio_format == AudioFormat::ImaAdpcmLe,
+        "IMA-ADPCM only"
+    );
     let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
     let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
     let num_blocks = data_chunk_size_in_bytes / num_block_align;
