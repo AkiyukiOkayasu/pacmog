@@ -138,12 +138,17 @@ impl<'a> ImaAdpcmPlayer<'a> {
         let num_channels = self.reader.specs.num_channels;
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
 
+        // outバッファーのチャンネル数が不足
         ensure!(
             out.len() >= num_channels as usize,
             "Invalid output buffer length"
         );
 
-        ensure!(self.frame_index <= samples_per_block, "Invalid frame_index");
+        // 再生終了
+        ensure!(
+            self.frame_index < self.reader.specs.num_samples,
+            "Invalid frame_index. Played to the end."
+        );
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.frame_index % samples_per_block == 0 {

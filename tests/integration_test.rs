@@ -327,3 +327,76 @@ fn ima_adpcm_4bit() {
         assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = 0.3f32);
     }
 }
+#[test]
+fn ima_adpcm_4bit_play_to_end() {
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
+    let mut player = ImaAdpcmPlayer::new(data);
+    let spec = player.reader.get_pcm_specs();
+    dbg!(&spec);
+    assert_eq!(spec.num_samples, 240838);
+    assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
+    assert_eq!(spec.bit_depth, 4);
+
+    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let buf = buffer.as_mut_slice();
+
+    // Play to the end
+    for _ in 0..spec.num_samples {
+        player.get_next_frame(buf).unwrap();
+    }
+
+    //Error
+    let e = player.get_next_frame(buf);
+    assert!(e.is_err());
+}
+
+#[test]
+fn ima_adpcm_4bit_2ch() {
+    let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
+    let mut player = ImaAdpcmPlayer::new(data);
+    let spec = player.reader.get_pcm_specs();
+    dbg!(&spec);
+    assert_eq!(spec.num_samples, 240838);
+    assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_channels, 2);
+    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
+    assert_eq!(spec.bit_depth, 4);
+
+    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let buf = buffer.as_mut_slice();
+
+    for i in 0..10 {
+        player.get_next_frame(buf).unwrap();
+        let l = buf[0] as f32 / i16::MAX as f32;
+        let r = buf[1] as f32 / i16::MAX as f32;
+        assert_relative_eq!(l, SINEWAVE[i as usize], epsilon = 0.3f32);
+        assert_relative_eq!(r, SINEWAVE[i as usize], epsilon = 0.3f32);
+    }
+}
+
+#[test]
+fn ima_adpcm_4bit_2ch_play_to_end() {
+    let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
+    let mut player = ImaAdpcmPlayer::new(data);
+    let spec = player.reader.get_pcm_specs();
+    dbg!(&spec);
+    assert_eq!(spec.num_samples, 240838);
+    assert_eq!(spec.sample_rate, 48000);
+    assert_eq!(spec.num_channels, 2);
+    assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
+    assert_eq!(spec.bit_depth, 4);
+
+    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let buf = buffer.as_mut_slice();
+
+    // Play to the end
+    for _ in 0..spec.num_samples {
+        player.get_next_frame(buf).unwrap();
+    }
+
+    // Error
+    let e = player.get_next_frame(buf);
+    assert!(e.is_err());
+}
