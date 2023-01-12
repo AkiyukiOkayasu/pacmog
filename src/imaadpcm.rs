@@ -217,6 +217,19 @@ impl<'a> ImaAdpcmPlayer<'a> {
             self.reading_block = block;
         }
     }
+
+    /// 再生位置を先頭に戻します.
+    pub fn rewind(&mut self) {
+        self.frame_index = 0;
+        if !self.reading_block.is_empty() {
+            self.reading_block = &self.reading_block[0..0]; //reading_blockを空のスライスにする
+        }
+        for q in &mut self.nibble_queue {
+            for i in 0..q.len() {
+                q.dequeue().unwrap();
+            }
+        }
+    }
 }
 
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
