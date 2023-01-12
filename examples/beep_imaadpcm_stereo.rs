@@ -1,10 +1,10 @@
-//! Play a sample mono ADPCM file.
+//! Play a sample stereo ADPCM file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use pacmog::imaadpcm::ImaAdpcmPlayer;
 use std::sync::mpsc;
 
 fn main() {
-    let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
+    let data = include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let mut buffer: [i16; 2] = [0i16, 0i16];
 
@@ -29,8 +29,12 @@ fn main() {
                     let buf = buffer.as_mut_slice();
                     match player.get_next_frame(buf) {
                         Ok(_) => {
-                            for (_ch, sample) in frame.iter_mut().enumerate() {
-                                *sample = buf[0] as f32 / i16::MAX as f32;
+                            for (ch, sample) in frame.iter_mut().enumerate() {
+                                if ch % 2 == 0 {
+                                    *sample = buf[0] as f32 / i16::MAX as f32;
+                                } else {
+                                    *sample = buf[1] as f32 / i16::MAX as f32;
+                                }
                             }
                         }
                         Err(e) => {
