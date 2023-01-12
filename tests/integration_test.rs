@@ -3340,6 +3340,18 @@ fn ima_adpcm_4bit_play_to_end() {
     //Error
     let e = player.get_next_frame(buf);
     assert!(e.is_err());
+
+    //再生位置を先頭に戻す
+    player.rewind();
+
+    // Play to the end
+    for _ in 0..spec.num_samples {
+        player.get_next_frame(buf).unwrap();
+    }
+
+    //Error
+    let e = player.get_next_frame(buf);
+    assert!(e.is_err());
 }
 
 #[test]
@@ -3380,6 +3392,18 @@ fn ima_adpcm_4bit_2ch_play_to_end() {
 
     let mut buffer: [i16; 2] = [0i16, 0i16];
     let buf = buffer.as_mut_slice();
+
+    // Play to the end
+    for _ in 0..spec.num_samples {
+        player.get_next_frame(buf).unwrap();
+    }
+
+    // Error
+    let e = player.get_next_frame(buf);
+    assert!(e.is_err());
+
+    // 再生位置を先頭に戻す.
+    player.rewind();
 
     // Play to the end
     for _ in 0..spec.num_samples {
