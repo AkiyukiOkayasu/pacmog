@@ -1,5 +1,7 @@
+//! Play a sample WAV file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use pacmog::PcmReader;
+use std::sync::mpsc;
 
 fn main() {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
@@ -19,14 +21,22 @@ fn main() {
     println!("PCM spec: {:?}", reader.get_pcm_specs());
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+    let (complete_tx, complete_rx) = mpsc::sync_channel::<()>(1);
+
     let stream = device
         .build_output_stream(
             &config.into(),
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                // write_data(data, channels, &mut next_value)
                 for frame in data.chunks_mut(channels) {
                     for sample in frame.iter_mut() {
-                        *sample = reader.read_sample(0, sample_index).unwrap();
+                        match reader.read_sample(0, sample_index) {
+                            Err(_) => {
+                                complete_tx.try_send(());
+                            }
+                            Ok(s) => {
+                                *sample = s;
+                            }
+                        }
                     }
                     sample_index += 1;
                 }
@@ -34,7 +44,9 @@ fn main() {
             err_fn,
         )
         .unwrap();
-    stream.play().unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    stream.play().unwrap();
+    complete_rx.recv().unwrap();
+    stream.pause().unwrap();
+    println!("done");
 }

@@ -1,5 +1,7 @@
+//! Play a sample mono ADPCM file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use pacmog::imaadpcm::ImaAdpcmPlayer;
+use std::sync::mpsc;
 
 fn main() {
     let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
@@ -17,22 +19,33 @@ fn main() {
     println!("PCM spec: {:?}", player.reader.get_pcm_specs());
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+    let (complete_tx, complete_rx) = mpsc::sync_channel::<()>(1);
+
     let stream = device
         .build_output_stream(
             &config.into(),
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                 for frame in data.chunks_mut(channels) {
                     let buf = buffer.as_mut_slice();
-                    player.get_next_frame(buf).unwrap();
-                    for (_ch, sample) in frame.iter_mut().enumerate() {
-                        *sample = buf[0] as f32 / i16::MAX as f32;
+                    match player.get_next_frame(buf) {
+                        Ok(_) => {
+                            for (_ch, sample) in frame.iter_mut().enumerate() {
+                                *sample = buf[0] as f32 / i16::MAX as f32;
+                            }
+                        }
+                        Err(e) => {
+                            println!("{}", e);
+                            complete_tx.try_send(());
+                        }
                     }
                 }
             },
             err_fn,
         )
         .unwrap();
-    stream.play().unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    stream.play().unwrap();
+    complete_rx.recv().unwrap();
+    stream.pause().unwrap();
+    println!("done")
 }
