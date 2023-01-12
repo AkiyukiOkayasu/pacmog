@@ -27,13 +27,20 @@ fn read_sample(c: &mut Criterion) {
 }
 
 fn parse_decode_ima_adpcm(c: &mut Criterion) {
-    let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let data = include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut buffer: [i16; 2] = [0i16, 0i16];
 
     c.bench_function("Decode IMA-ADPCM", |b| {
+        let mut player = ImaAdpcmPlayer::new(data);
         let buf = buffer.as_mut_slice();
-        b.iter(|| player.get_next_frame(buf))
+        b.iter(|| {
+            // player = ImaAdpcmPlayer::new(data);
+            player.rewind();
+            for _ in 0..192000 {
+                //4sec
+                player.get_next_frame(buf).unwrap();
+            }
+        })
     });
 }
 
