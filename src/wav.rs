@@ -130,7 +130,6 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
 
     if audio_format == AudioFormat::ImaAdpcmLe {
         //IMA-ADPCMの拡張属性の取得
-        println!("block size: {}", block_size);
         let num_block_align = block_size;
         assert!(block_size % 4 == 0);
         assert!(input.len() >= 4);
