@@ -32,5 +32,8 @@ jobs:
       run: |
         cargo build --example beep
         cargo build --example beep_imaadpcm
+        cargo build --example beep_imaadpcm_stereo
+        cargo build --example print_sample_values
+        cargo build --example read_wav_no_std
     - name: Code coverage
       run: cargo llvm-cov
