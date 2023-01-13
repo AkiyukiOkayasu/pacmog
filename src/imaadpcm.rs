@@ -148,13 +148,13 @@ impl<'a> ImaAdpcmPlayer<'a> {
         // outバッファーのチャンネル数が不足
         ensure!(
             out.len() >= num_channels as usize,
-            "Invalid output buffer length"
+            "Number of elements in \"out\" must be greater than or equal to the number of IMA-ADPCM channels"
         );
 
         // 再生終了
         ensure!(
             self.frame_index < self.reader.specs.num_samples,
-            "Invalid frame_index. Played to the end."
+            "Played to the end."
         );
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
