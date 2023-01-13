@@ -31,7 +31,7 @@ fn main() {
                     for sample in frame.iter_mut() {
                         match reader.read_sample(0, sample_index) {
                             Err(_) => {
-                                complete_tx.try_send(());
+                                let _result = complete_tx.try_send(());
                             }
                             Ok(s) => {
                                 *sample = s;

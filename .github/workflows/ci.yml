@@ -19,7 +19,9 @@ jobs:
     - uses: Swatinem/rust-cache@v2
     - uses: taiki-e/install-action@cargo-llvm-cov
     - name: install libasound2-dev
-      run: sudo apt install libasound2-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libasound2-dev
     - name: Print Rust version
       run: rustc --version
     - name: Build
@@ -30,5 +32,8 @@ jobs:
       run: |
         cargo build --example beep
         cargo build --example beep_imaadpcm
+        cargo build --example beep_imaadpcm_stereo
+        cargo build --example print_sample_values
+        cargo build --example read_wav_no_std
     - name: Code coverage
       run: cargo llvm-cov

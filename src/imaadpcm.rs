@@ -117,7 +117,7 @@ pub(crate) fn calc_num_samples_per_channel(
 /// * 'last_predicted_sample' - デコードされた直近の値
 /// * 'step_size_table_index' - STEP_SIZE_TABLEのどれを示すかのindex
 /// * 'reading_block' - 現在読み込み中のIMA-ADPCMのブロック
-/// * 'nibble_queue' - word読み込み時のnibbleを保管するqueue
+/// * 'nibble_queue' - Data word読み込み時のnibbleを保管するqueue
 #[derive(Default)]
 pub struct ImaAdpcmPlayer<'a> {
     pub reader: PcmReader<'a>,
@@ -148,13 +148,13 @@ impl<'a> ImaAdpcmPlayer<'a> {
         // outバッファーのチャンネル数が不足
         ensure!(
             out.len() >= num_channels as usize,
-            "Invalid output buffer length"
+            "Number of elements in \"out\" must be greater than or equal to the number of IMA-ADPCM channels"
         );
 
         // 再生終了
         ensure!(
             self.frame_index < self.reader.specs.num_samples,
-            "Invalid frame_index. Played to the end."
+            "Played to the end."
         );
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
@@ -225,7 +225,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             self.reading_block = &self.reading_block[0..0]; //reading_blockを空のスライスにする
         }
         for q in &mut self.nibble_queue {
-            for i in 0..q.len() {
+            for _ in 0..q.len() {
                 q.dequeue().unwrap();
             }
         }

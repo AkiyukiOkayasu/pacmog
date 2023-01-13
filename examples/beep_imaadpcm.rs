@@ -35,7 +35,7 @@ fn main() {
                         }
                         Err(e) => {
                             println!("{}", e);
-                            complete_tx.try_send(());
+                            let _result = complete_tx.try_send(());
                         }
                     }
                 }

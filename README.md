@@ -2,9 +2,9 @@
 
 ![Tests](https://github.com/AkiyukiOkayasu/pacmog/actions/workflows/ci.yml/badge.svg)
 
-include_bytes!で埋め込んだWAVEファイルをデコードするためのライブラリ。  
-マイコンのファームウェアに効果音を埋め込むなどの利用を想定。  
-no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパースをしている。  
+Library for decoding PCM files embedded with include_bytes!.
+Designed for use in playing PCM files embedded in microcontroller firmware.  
+pacmog works with no_std by default.
 
 | Format          | Status |
 | :---            | :---: |
@@ -19,11 +19,6 @@ no_stdで使えるように[nom](https://github.com/Geal/nom)でWAVEのパース
 | AIFF 32bit | ✅ |
 | AIFF 32bit float | ✅ |
 | AIFF 64bit float | ✅ |
-
-## TODO
-
-- no_stdで動作させる
-  - nomのmany0とかが使えなくなる
 
 ## Example
 
@@ -42,3 +37,8 @@ cargo test
 ```bash
 cargo criterion
 ```
+
+## no_std
+
+pacmog works with no_std by default.  
+No setup is needed.  

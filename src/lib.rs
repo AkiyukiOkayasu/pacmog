@@ -2,16 +2,19 @@
 
 use anyhow::{bail, ensure};
 use core::f32;
+use heapless::Vec;
 use nom::error::Error;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
 use nom::Finish;
-use nom::{multi::many1, IResult};
+use nom::{multi::fold_many1, IResult};
 
 mod aiff;
 pub mod imaadpcm;
 mod wav;
+
+const MAX_NUM_CHUNKS: usize = 16;
 
 /// TODO 説明
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -59,7 +62,14 @@ pub struct PcmReader<'a> {
 
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        let (input, v) = many1(aiff::parse_chunk)(input)?;
+        let (input, v) = fold_many1(
+            aiff::parse_chunk,
+            || Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new(),
+            |mut chunk_array: Vec<aiff::Chunk, MAX_NUM_CHUNKS>, item| {
+                chunk_array.push(item).unwrap();
+                chunk_array
+            },
+        )(input)?;
 
         for e in v {
             assert_ne!(e.size, 0);
@@ -92,8 +102,14 @@ impl<'a> PcmReader<'a> {
     }
 
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        //many1はallocが実装されていないと使えない。no_stdで使うなら逐次的に実行するべき。
-        let (input, v) = many1(wav::parse_chunk)(input)?;
+        let (input, v) = fold_many1(
+            wav::parse_chunk,
+            || Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new(),
+            |mut chunk_array: Vec<wav::Chunk, MAX_NUM_CHUNKS>, item| {
+                chunk_array.push(item).unwrap();
+                chunk_array
+            },
+        )(input)?;
 
         for e in v {
             assert_ne!(e.size, 0);
