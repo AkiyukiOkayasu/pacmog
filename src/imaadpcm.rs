@@ -27,14 +27,14 @@ const MAX_NUM_CHANNELS: usize = 2;
 /// * 'i_samp_0' - The first sample value of the block. When decoding, this will be used as the previous sample to start decoding with.
 /// * 'b_step_table_index' - The current index into the step table array. [0-88]
 #[derive(Default, Debug)]
-pub struct BlockHeader {
-    pub(self) i_samp_0: i16,
-    pub(self) b_step_table_index: i8,
+struct BlockHeader {
+    i_samp_0: i16,
+    b_step_table_index: i8,
 }
 
 /// IMA-ADPCMのHeader Wordをパースする
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
-pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
+fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     let (input, i_samp_0) = le_i16(input)?;
     let (input, b_step_table_index) = le_i8(input)?;
     let (input, _reserved) = le_u8(input)?;
@@ -51,11 +51,7 @@ pub(super) fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
 /// * 'nibble' - 4bit signed int data [-8..+7]
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
-pub(super) fn decode_sample(
-    nibble: u8,
-    last_predicted_sample: i16,
-    step_size_table_index: i8,
-) -> (i16, i8) {
+fn decode_sample(nibble: u8, last_predicted_sample: i16, step_size_table_index: i8) -> (i16, i8) {
     // calculate difference = (originalSample + 1⁄2) * stepsize/4:
     let mut diff = 0i32;
     let step_size = STEP_SIZE_TABLE[step_size_table_index as usize] as i32;
