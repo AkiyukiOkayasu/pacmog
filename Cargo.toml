@@ -1,6 +1,6 @@
 [package]
 name = "pacmog"
-version = "0.1.0"
+version = "0.3.0"
 authors = ["Akiyuki Okayasu <akiyuki.okayasu@gmail.com>"]
 description = "PCM parser"
 categories = ["audio", "no-std"]
