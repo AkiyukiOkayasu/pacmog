@@ -3,6 +3,25 @@
 //! Rust has an include_bytes! macro to embed the byte sequence in the program.   
 //! Using it, PCM files can be embedded in firmware and used for playback.  
 //!
+//! # Examples
+//!
+//! Read a sample WAV file.
+//! ```
+//! use pacmog::PcmReader;
+//!
+//! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
+//! let reader = PcmReader::new(wav);
+//! let specs = reader.get_pcm_specs();
+//! let num_samples = specs.num_samples;
+//! let num_channels = specs.num_channels as u32;
+//!
+//! for sample in 0..num_samples {
+//!     for channel in 0..num_channels {
+//!         let sample_value = reader.read_sample(channel, sample).unwrap();
+//!         println!("{}", sample_value);
+//!     }
+//! }
+//! ```
 
 use anyhow::{bail, ensure};
 use core::f32;
