@@ -1,4 +1,8 @@
-//! Decode PCM files for embedded.
+//! pacmog is a decoding library for PCM files for embedded environments.  
+//!
+//! Rust has an include_bytes! macro to embed the byte sequence in the program.   
+//! Using it, PCM files can be embedded in firmware and used for playback.  
+//!
 
 use anyhow::{bail, ensure};
 use core::f32;
