@@ -1,4 +1,4 @@
-//! Decode IMA-ADPCM
+//! IMA-ADPCM
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 use anyhow::ensure;
@@ -107,25 +107,25 @@ pub(crate) fn calc_num_samples_per_channel(
     Ok(num_samples)
 }
 
-/// IMA-ADPCMファイルを再生するために高レベルにまとめられたクラス
-/// * 'reader' - PCMファイルの低レベル情報にアクセスするためのクラス
-/// * 'frame_index' - 現在の読んでいるサンプル位置
-/// * 'last_predicted_sample' - デコードされた直近の値
-/// * 'step_size_table_index' - STEP_SIZE_TABLEのどれを示すかのindex
-/// * 'reading_block' - 現在読み込み中のIMA-ADPCMのブロック
-/// * 'nibble_queue' - Data word読み込み時のnibbleを保管するqueue
+/// High level of organized players for IMA-ADPCM playback.
 #[derive(Default)]
 pub struct ImaAdpcmPlayer<'a> {
+    /// A reader to access basic information about the PCM file.
     pub reader: PcmReader<'a>,
+    /// 現在読んでいるサンプル位置.
     frame_index: u32,
+    /// デコードされた直近の値.
     last_predicted_sample: [i16; MAX_NUM_CHANNELS],
+    /// STEP_SIZE_TABLEのindex.
     step_size_table_index: [i8; MAX_NUM_CHANNELS],
+    /// 現在読み込み中のIMA-ADPCMのブロック.
     reading_block: &'a [u8],
+    /// Data word読み込み時のnibble配列を保管するqueue.
     nibble_queue: [Queue<u8, 9>; MAX_NUM_CHANNELS], //todo Queueサイズは2の冪乗の方がパフォーマンスよい。
 }
 
 impl<'a> ImaAdpcmPlayer<'a> {
-    /// * 'input' - PCM data byte array
+    /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
         let reader = PcmReader::new(input);
         let player = ImaAdpcmPlayer {
@@ -136,8 +136,8 @@ impl<'a> ImaAdpcmPlayer<'a> {
         player
     }
 
-    /// 次のサンプル（全チャンネル）を取得.
-    /// * 'out' - サンプルが書き込まれるバッファー
+    /// Return samples value of the next frame.
+    /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
     pub fn get_next_frame(&mut self, out: &mut [i16]) -> anyhow::Result<()> {
         let num_channels = self.reader.specs.num_channels;
 
@@ -214,7 +214,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         }
     }
 
-    /// 再生位置を先頭に戻します.
+    /// Move the playback position back to the beginning.
     pub fn rewind(&mut self) {
         self.frame_index = 0;
         if !self.reading_block.is_empty() {
