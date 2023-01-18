@@ -15,6 +15,8 @@
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels as u32;
 //!
+//! println!("PCM info: {:?}", specs);
+//!
 //! for sample in 0..num_samples {
 //!     for channel in 0..num_channels {
 //!         let sample_value = reader.read_sample(channel, sample).unwrap();
@@ -39,7 +41,7 @@ mod wav;
 
 const MAX_NUM_CHUNKS: usize = 16;
 
-/// TODO 説明
+/// Audio format
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum AudioFormat {
     /// Unknown format
@@ -57,7 +59,7 @@ pub enum AudioFormat {
     ImaAdpcmLe,
 }
 
-/// PCMファイルの情報.
+/// Basic information on the PCM file.
 #[derive(Default, Debug, Clone)]
 pub struct PcmSpecs {
     /// Audio format.
@@ -76,13 +78,12 @@ pub struct PcmSpecs {
     pub(crate) ima_adpcm_num_samples_per_block: Option<u16>,
 }
 
-/// PCMファイルの低レベルな情報を取得するためのクラス
+/// Reads low level information and Data chunks from the PCM file.
 #[derive(Default)]
 pub struct PcmReader<'a> {
     pub(crate) specs: PcmSpecs,
     pub(crate) data: &'a [u8],
 }
-
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
@@ -204,16 +205,13 @@ impl<'a> PcmReader<'a> {
         panic!();
     }
 
-    /// ファイル情報の取得
+    /// Returns basic information about the PCM file.
     pub fn get_pcm_specs(&self) -> PcmSpecs {
         self.specs.clone()
     }
 
-    /// DATAチャンクを読んでサンプルを読みだす    
-    /// フォーマットに関わらず+/-1の範囲に正規化された数を返す
-    /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
-    /// もしくはf32かf64を選択できるようにする
-    /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
+    /// Returns the value of a sample at an arbitrary position.  
+    /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.  
     pub fn read_sample(&self, channel: u32, sample: u32) -> anyhow::Result<f32> {
         ensure!(channel < self.specs.num_channels as u32, "Invalid channel");
         ensure!(sample < self.specs.num_samples, "Invalid sample");
@@ -231,7 +229,7 @@ impl<'a> PcmReader<'a> {
 /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
 /// もしくはf32かf64を選択できるようにする
 /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
-pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
+fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
     match specs.audio_format {
         AudioFormat::Unknown => {
             bail!("Unknown audio format");
