@@ -52,6 +52,7 @@ impl TryFrom<&[u8]> for ChunkId {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum CompressionTypeId {
     None,
     Sowt,
@@ -169,7 +170,7 @@ pub(super) fn parse_ssnd(input: &[u8]) -> IResult<&[u8], SsndBlockInfo> {
 /// 1 bit sign, 15 bit exponent, 1 bit normalization indication, 63 bit mantissa
 /// https://stackoverflow.com/a/3949358
 fn extended2double(buffer: &[u8]) -> f64 {
-    assert!(buffer.len() >= 10);
+    assert!(buffer.len() == 10);
 
     let sign = if (buffer[0] & 0x80) == 0x00 {
         1f64
@@ -197,4 +198,116 @@ fn extended2double(buffer: &[u8]) -> f64 {
     //value = (-1) ^ s * (normalizeCorrection + m / 2 ^ 63) * 2 ^ (e - 16383)
     sign * (normalize_correction + mantissa as f64 / 2f64.powf(63f64))
         * 2f64.powf(exponent as f64 - 16383f64)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::aiff::CompressionTypeId;
+
+    use super::{extended2double, ChunkId};
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn extended2double_test() {
+        let array: [u8; 10] = [64, 14, 187, 128, 0, 0, 0, 0, 0, 0];
+        assert_relative_eq!(extended2double(&array), 48000.0f64);
+    }
+
+    #[test]
+    fn chunk_id_test() {
+        let b = b"COMM";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Common);
+
+        let b = b"SSND";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::SoundData);
+
+        let b = b"MARK";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Marker);
+
+        let b = b"FVER";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::FormatVersion);
+
+        let b = b"INST";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Instrument);
+
+        let b = b"MIDI";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::MIDI);
+
+        let b = b"AESD";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::AudioRecording);
+
+        let b = b"APPL";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::ApplicationSpecific);
+
+        let b = b"COMT";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Comment);
+
+        let b = b"NAME";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Name);
+
+        let b = b"AUTH";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Author);
+
+        let b = b"(c) ";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Copyright);
+
+        let b = b"ANNO";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Annotation);
+
+        let b = b"HOGE";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Unknown);
+
+        let b = b"FOO";
+        let e: Result<ChunkId, ()> = b.as_slice().try_into();
+        assert_eq!(e, Err(()));
+    }
+
+    #[test]
+    fn compression_type_id_test() {
+        let b = b"sowt";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::Sowt);
+
+        let b = b"NONE";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::None);
+
+        let b = b"fl32";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::FL32);
+
+        let b = b"FL32";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::FL32);
+
+        let b = b"fl64";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::FL64);
+
+        let b = b"FL64";
+        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
+        assert_eq!(c, CompressionTypeId::FL64);
+
+        let b = b"HOGE";
+        let e: Result<CompressionTypeId, ()> = b.as_slice().try_into();
+        assert_eq!(e, Err(()));
+
+        let b = b"FOO";
+        let e: Result<CompressionTypeId, ()> = b.as_slice().try_into();
+        assert_eq!(e, Err(()));
+    }
 }
