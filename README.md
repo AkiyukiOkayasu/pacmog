@@ -2,9 +2,10 @@
 
 ![Tests](https://github.com/AkiyukiOkayasu/pacmog/actions/workflows/ci.yml/badge.svg)
 
-Library for decoding PCM files embedded with include_bytes!.
-Designed for use in playing PCM files embedded in microcontroller firmware.  
-pacmog works with no_std by default.
+pacmog is a decoding library for the PCM file.  
+Designed for use in playing the PCM file embedded in microcontroller firmware.  
+Rust has an include_bytes! macro to embed the byte sequence in the program. Using it, PCM files can be embedded in firmware and used for playback.  
+pacmog works with no_std by default.  
 
 | Format          | Status |
 | :---            | :---: |
@@ -24,6 +25,26 @@ pacmog works with no_std by default.
 
 ```bash
 cargo run --example beep
+```
+
+Read a sample WAV file.
+```Rust
+use pacmog::PcmReader;
+
+let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
+let reader = PcmReader::new(wav);
+let specs = reader.get_pcm_specs();
+let num_samples = specs.num_samples;
+let num_channels = specs.num_channels as u32;
+
+println!("PCM info: {:?}", specs);
+
+for sample in 0..num_samples {
+    for channel in 0..num_channels {
+        let sample_value = reader.read_sample(channel, sample).unwrap();
+        println!("{}", sample_value);
+    }
+}
 ```
 
 ## Test
