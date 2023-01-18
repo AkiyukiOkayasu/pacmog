@@ -12,7 +12,7 @@ changelog:
       labels:
         - Semver-Minor
         - enhancement
-    - title: Breaking Changes 🛠
+    - title: Breaking Changes
       labels:
         - breaking-change
     - title: Other Changes
