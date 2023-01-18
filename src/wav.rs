@@ -49,9 +49,9 @@ pub(super) struct Chunk<'a> {
 }
 
 /// Waveの形式
-/// LinearPCMとIEEE FloatとIMA ADPCMくらいしか使わないはず
+/// LinearPCMとIEEE FloatとIMA-ADPCMくらいしか使わないはず
 /// https://github.com/tpn/winsdk-10/blob/9b69fd26ac0c7d0b83d378dba01080e93349c2ed/Include/10.0.14393.0/shared/mmreg.h#L2107-L2372
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum WaveFormatTag {
     LinearPcm = 0x01, //1
     IeeeFloat = 0x03, //3
@@ -122,10 +122,10 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcmLe,
     };
 
-    let (input, num_channels) = le_u16(input)?; //1
-    let (input, sample_rate) = le_u32(input)?; //48000
+    let (input, num_channels) = le_u16(input)?;
+    let (input, sample_rate) = le_u32(input)?;
     let (input, _bytes_per_seconds) = le_u32(input)?;
-    let (input, block_size) = le_u16(input)?; //1024
+    let (input, block_size) = le_u16(input)?;
     let (input, bit_depth) = le_u16(input)?;
 
     if audio_format == AudioFormat::ImaAdpcmLe {
@@ -185,27 +185,91 @@ pub(super) fn calc_num_samples_per_channel(
 
 #[cfg(test)]
 mod tests {
-    use crate::{wav::calc_num_samples_per_channel, PcmSpecs};
+    use crate::{wav::calc_num_samples_per_channel, wav::ChunkId, PcmSpecs};
+
+    use super::WaveFormatTag;
 
     #[test]
     fn calc_num_samples() {
         let spec = PcmSpecs {
+            audio_format: crate::AudioFormat::LinearPcmLe,
+            bit_depth: 16,
+            num_channels: 2,
+            ..Default::default()
+        };
+        let n = calc_num_samples_per_channel(192000, &spec).unwrap();
+        assert_eq!(n, 48000);
+
+        // IMA-ADPCMのときにErrになるかtest
+        let spec = PcmSpecs {
             audio_format: crate::AudioFormat::ImaAdpcmLe,
             bit_depth: 4,
             num_channels: 1,
-            num_samples: 0,
-            sample_rate: 44100,
             ..Default::default()
         };
+        let e = calc_num_samples_per_channel(2041, &spec);
+        assert!(e.is_err());
+    }
 
-        let r = calc_num_samples_per_channel(2041, &spec);
-        match r {
-            Ok(_) => {
-                assert!(false);
-            }
-            Err(e) => {
-                dbg!(e);
-            }
-        }
+    #[test]
+    fn wave_format_tag_test() {
+        let b = 0x01;
+        let tag: WaveFormatTag = b.try_into().unwrap();
+        assert_eq!(tag, WaveFormatTag::LinearPcm);
+
+        let b = 0x03;
+        let tag: WaveFormatTag = b.try_into().unwrap();
+        assert_eq!(tag, WaveFormatTag::IeeeFloat);
+
+        let b = 0x11;
+        let tag: WaveFormatTag = b.try_into().unwrap();
+        assert_eq!(tag, WaveFormatTag::ImaAdpcm);
+
+        let b = 0xFF;
+        let e: Result<WaveFormatTag, ()> = b.try_into();
+        assert_eq!(e, Err(()));
+    }
+
+    #[test]
+    fn chunk_id_test() {
+        let b = b"fmt ";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Fmt);
+
+        let b = b"fact";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Fact);
+
+        let b = b"PEAK";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::PEAK);
+
+        let b = b"data";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Data);
+
+        let b = b"JUNK";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::JUNK);
+
+        let b = b"junk";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::JUNK);
+
+        let b = b"IDv3";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::IDv3);
+
+        let b = b"LIST";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::LIST);
+
+        let b = b"HOGE";
+        let chunk: ChunkId = b.as_slice().try_into().unwrap();
+        assert_eq!(chunk, ChunkId::Unknown);
+
+        let b = b"FOO";
+        let e: Result<ChunkId, ()> = b.as_slice().try_into();
+        assert_eq!(e, Err(()));
     }
 }
