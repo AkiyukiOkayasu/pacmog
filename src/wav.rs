@@ -107,8 +107,8 @@ pub(super) struct WavFmtSpecs {
     pub num_channels: u16,
     pub sample_rate: u32,
     pub bit_depth: u16,
-    pub(crate) ima_adpcm_num_block_align: Option<u16>,
-    pub(crate) ima_adpcm_num_samples_per_block: Option<u16>,
+    pub ima_adpcm_num_block_align: Option<u16>,
+    pub ima_adpcm_num_samples_per_block: Option<u16>,
 }
 
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.

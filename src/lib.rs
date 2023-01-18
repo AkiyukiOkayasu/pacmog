@@ -1,4 +1,29 @@
-//! Decode PCM files for embedded.
+//! pacmog is a decoding library for PCM files for embedded environments.  
+//!
+//! Rust has an include_bytes! macro to embed the byte sequence in the program.   
+//! Using it, PCM files can be embedded in firmware and used for playback.  
+//!
+//! # Examples
+//!
+//! Read a sample WAV file.
+//! ```
+//! use pacmog::PcmReader;
+//!
+//! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
+//! let reader = PcmReader::new(wav);
+//! let specs = reader.get_pcm_specs();
+//! let num_samples = specs.num_samples;
+//! let num_channels = specs.num_channels as u32;
+//!
+//! println!("PCM info: {:?}", specs);
+//!
+//! for sample in 0..num_samples {
+//!     for channel in 0..num_channels {
+//!         let sample_value = reader.read_sample(channel, sample).unwrap();
+//!         println!("{}", sample_value);
+//!     }
+//! }
+//! ```
 
 use anyhow::{bail, ensure};
 use core::f32;
@@ -16,7 +41,7 @@ mod wav;
 
 const MAX_NUM_CHUNKS: usize = 16;
 
-/// TODO 説明
+/// Audio format
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub enum AudioFormat {
     /// Unknown format
@@ -34,32 +59,31 @@ pub enum AudioFormat {
     ImaAdpcmLe,
 }
 
-/// PCMファイルの情報.
-/// * 'audio_format' -
-/// * 'num_channels' - Mono: 1, Stereo: 2
-/// * 'sample_rate' - 48000Hz, 44100Hz and so on.
-/// * 'bit_depth' - 16bit, 24bit, 32bit and so on.
-/// * 'num_samples' - Number of samples per channel.
-/// * 'ima_adpcm_num_block_align' - IMA-ADPCM only. IMA-ADPCMの1ブロックが何byteで構成されているか。
-/// * 'ima_adpcm_num_samples_per_block' - IMA-ADPCM only. IMA-ADPCMの1ブロックに何サンプル記録されているか。
+/// Basic information on the PCM file.
 #[derive(Default, Debug, Clone)]
 pub struct PcmSpecs {
+    /// Audio format.
     pub audio_format: AudioFormat,
+    /// Number of channels.
     pub num_channels: u16,
+    /// Sample rate in Hz.
     pub sample_rate: u32,
+    /// Bit depth.
     pub bit_depth: u16,
+    /// Number of samples per channel.
     pub num_samples: u32,
+    /// IMA-ADPCM only. Number of bytes per block of IMA-ADPCM.
     pub(crate) ima_adpcm_num_block_align: Option<u16>,
+    /// IMA-ADPCM only. Number of samples per block of IMA-ADPCM.
     pub(crate) ima_adpcm_num_samples_per_block: Option<u16>,
 }
 
-/// PCMファイルの低レベルな情報を取得するためのクラス
+/// Reads low level information and Data chunks from the PCM file.
 #[derive(Default)]
 pub struct PcmReader<'a> {
     pub(crate) specs: PcmSpecs,
     pub(crate) data: &'a [u8],
 }
-
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
@@ -181,16 +205,13 @@ impl<'a> PcmReader<'a> {
         panic!();
     }
 
-    /// ファイル情報の取得
+    /// Returns basic information about the PCM file.
     pub fn get_pcm_specs(&self) -> PcmSpecs {
         self.specs.clone()
     }
 
-    /// DATAチャンクを読んでサンプルを読みだす    
-    /// フォーマットに関わらず+/-1の範囲に正規化された数を返す
-    /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
-    /// もしくはf32かf64を選択できるようにする
-    /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
+    /// Returns the value of a sample at an arbitrary position.  
+    /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.  
     pub fn read_sample(&self, channel: u32, sample: u32) -> anyhow::Result<f32> {
         ensure!(channel < self.specs.num_channels as u32, "Invalid channel");
         ensure!(sample < self.specs.num_samples, "Invalid sample");
@@ -208,7 +229,7 @@ impl<'a> PcmReader<'a> {
 /// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
 /// もしくはf32かf64を選択できるようにする
 /// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
-pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
+fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
     match specs.audio_format {
         AudioFormat::Unknown => {
             bail!("Unknown audio format");
@@ -295,11 +316,10 @@ pub(crate) fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32
     }
 }
 
-/// PCMファイルを再生するために高レベルにまとめられたクラス
-/// * 'reader' - PCMファイルの低レベル情報にアクセスするためのクラス
-/// * 'reading_buffer' - 再生中のバッファー。get_next_frame()で使用する。
+/// High level of organized players for LinearPCM (WAVE or AIFF) file.
 #[derive(Default)]
 pub struct PcmPlayer<'a> {
+    /// A reader to access basic information about the PCM file.
     pub reader: PcmReader<'a>,
     reading_data: &'a [u8],
     loop_playing: bool,
@@ -318,22 +338,22 @@ impl<'a> PcmPlayer<'a> {
         player
     }
 
-    /// 再生位置のセット
+    /// Move the playback position to the desired position.    
     pub fn set_position(&mut self, sample: u32) {
         let byte_depth = self.reader.specs.bit_depth as u32 / 8u32;
         let byte_offset = (byte_depth * sample * self.reader.specs.num_channels as u32) as usize;
         self.reading_data = &self.reader.data[byte_offset..];
     }
 
-    /// ループ再生の有効無効設定.
-    /// true: loop enable
-    /// false: loop disable
+    /// Enable loop playback.
+    /// true: Enable loop playback
+    /// false: Disable loop playback
     pub fn set_loop_playing(&mut self, en: bool) {
         self.loop_playing = en;
     }
 
-    /// 次のサンプル（全チャンネル）を取得.
-    /// * 'out' - サンプルが書き込まれるバッファー
+    /// Return samples value of the next frame.
+    /// * ‘out’ - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
     pub fn get_next_frame(&mut self, out: &mut [f32]) -> anyhow::Result<()> {
         let byte_depth = self.reader.specs.bit_depth / 8;
 
