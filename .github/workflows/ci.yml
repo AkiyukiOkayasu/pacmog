@@ -38,4 +38,4 @@ jobs:
     - name: Code coverage
       run: cargo llvm-cov
     - name: Clippy
-      run: cargo clippy
+      run: cargo clippy -v --all-targets 
