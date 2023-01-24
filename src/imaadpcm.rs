@@ -128,12 +128,12 @@ impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
         let reader = PcmReader::new(input);
-        let player = ImaAdpcmPlayer {
+        
+        ImaAdpcmPlayer {
             reader,
             frame_index: 0,
             ..Default::default()
-        };
-        player
+        }
     }
 
     /// Return samples value of the next frame.
@@ -154,7 +154,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         );
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
-        if self.reading_block.len() == 0 && self.nibble_queue[0].is_empty() {
+        if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
             self.update_block();
             for ch in 0..num_channels as usize {
                 out[ch] = self.last_predicted_sample[ch];
@@ -207,7 +207,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
-            let (block, block_header) = parse_block_header(&self.reading_block).unwrap(); //Headerの1ch分は4byte
+            let (block, block_header) = parse_block_header(self.reading_block).unwrap(); //Headerの1ch分は4byte
             self.last_predicted_sample[ch] = block_header.i_samp_0;
             self.step_size_table_index[ch] = block_header.b_step_table_index;
             self.reading_block = block;
