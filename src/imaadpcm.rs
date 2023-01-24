@@ -179,7 +179,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         }
 
         //デコード
-        for ch in 0..num_channels as usize {
+        for (ch, output_value) in out.iter_mut().enumerate().take(num_channels as usize) {
             let nibble = self.nibble_queue[ch].dequeue().unwrap();
             let (predicted_sample, table_index) = decode_sample(
                 nibble,
@@ -188,7 +188,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             );
             self.last_predicted_sample[ch] = predicted_sample;
             self.step_size_table_index[ch] = table_index;
-            out[ch] = predicted_sample;
+            *output_value = predicted_sample;
         }
 
         self.frame_index += 1;
