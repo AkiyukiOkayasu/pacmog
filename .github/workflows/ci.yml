@@ -37,3 +37,5 @@ jobs:
         cargo build --example read_wav_no_std
     - name: Code coverage
       run: cargo llvm-cov
+    - name: Clippy
+      run: cargo clippy
