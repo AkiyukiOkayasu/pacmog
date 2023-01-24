@@ -10,10 +10,10 @@ use nom::IResult;
 pub(super) enum ChunkId {
     Fmt,  // b"fmt "
     Fact, // b"fact"
-    PEAK, // b"PEAK"
+    Peak, // b"PEAK"
     Data, // b"data"
-    JUNK,
-    LIST,
+    Junk,
+    List,
     IDv3,
     #[default]
     Unknown,
@@ -30,12 +30,12 @@ impl TryFrom<&[u8]> for ChunkId {
         match v {
             b"fmt " => Ok(ChunkId::Fmt),
             b"fact" => Ok(ChunkId::Fact),
-            b"PEAK" => Ok(ChunkId::PEAK),
+            b"PEAK" => Ok(ChunkId::Peak),
             b"data" => Ok(ChunkId::Data),
-            b"junk" => Ok(ChunkId::JUNK),
-            b"JUNK" => Ok(ChunkId::JUNK),
+            b"junk" => Ok(ChunkId::Junk),
+            b"JUNK" => Ok(ChunkId::Junk),
             b"IDv3" => Ok(ChunkId::IDv3),
-            b"LIST" => Ok(ChunkId::LIST),
+            b"LIST" => Ok(ChunkId::List),
             _ => Ok(ChunkId::Unknown),
         }
     }
@@ -242,7 +242,7 @@ mod tests {
 
         let b = b"PEAK";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
-        assert_eq!(chunk, ChunkId::PEAK);
+        assert_eq!(chunk, ChunkId::Peak);
 
         let b = b"data";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
@@ -250,11 +250,11 @@ mod tests {
 
         let b = b"JUNK";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
-        assert_eq!(chunk, ChunkId::JUNK);
+        assert_eq!(chunk, ChunkId::Junk);
 
         let b = b"junk";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
-        assert_eq!(chunk, ChunkId::JUNK);
+        assert_eq!(chunk, ChunkId::Junk);
 
         let b = b"IDv3";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
@@ -262,7 +262,7 @@ mod tests {
 
         let b = b"LIST";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
-        assert_eq!(chunk, ChunkId::LIST);
+        assert_eq!(chunk, ChunkId::List);
 
         let b = b"HOGE";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();

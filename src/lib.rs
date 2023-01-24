@@ -111,7 +111,7 @@ impl<'a> PcmReader<'a> {
                 aiff::ChunkId::FormatVersion => {}
                 aiff::ChunkId::Marker => {}
                 aiff::ChunkId::Instrument => {}
-                aiff::ChunkId::MIDI => {}
+                aiff::ChunkId::Midi => {}
                 aiff::ChunkId::AudioRecording => {}
                 aiff::ChunkId::ApplicationSpecific => {}
                 aiff::ChunkId::Comment => {}
@@ -155,9 +155,9 @@ impl<'a> PcmReader<'a> {
                 }
                 wav::ChunkId::Fact => {}
                 wav::ChunkId::IDv3 => {}
-                wav::ChunkId::JUNK => {}
-                wav::ChunkId::LIST => {}
-                wav::ChunkId::PEAK => {}
+                wav::ChunkId::Junk => {}
+                wav::ChunkId::List => {}
+                wav::ChunkId::Peak => {}
                 wav::ChunkId::Unknown => {}
             }
         }
@@ -362,7 +362,7 @@ impl<'a> PcmPlayer<'a> {
             "Invalid output buffer length"
         );
 
-        if self.reading_data.len() <= 0 {
+        if self.reading_data.is_empty() {
             if self.loop_playing {
                 self.set_position(0);
             } else {

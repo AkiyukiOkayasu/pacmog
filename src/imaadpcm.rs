@@ -128,7 +128,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
         let reader = PcmReader::new(input);
-        
+
         ImaAdpcmPlayer {
             reader,
             frame_index: 0,
@@ -156,9 +156,8 @@ impl<'a> ImaAdpcmPlayer<'a> {
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
             self.update_block();
-            for ch in 0..num_channels as usize {
-                out[ch] = self.last_predicted_sample[ch];
-            }
+            out[..(num_channels as usize)]
+                .copy_from_slice(&self.last_predicted_sample[..(num_channels as usize)]);
             self.frame_index += 1; //Blockの最初のサンプルはHeaderに記録されている
             return Ok(());
         }
