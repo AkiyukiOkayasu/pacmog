@@ -227,8 +227,11 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 }
 
+/// IMA-ADPCMのData word (32bit長)を8つのnibble(4bit長)にパースしたもの
+type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
+
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
-fn parse_data_word(input: &[u8]) -> IResult<&[u8], (u8, u8, u8, u8, u8, u8, u8, u8)> {
+fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
     bits::<_, _, Error<(&[u8], usize)>, _, _>(tuple((
         take(4usize),
         take(4usize),
