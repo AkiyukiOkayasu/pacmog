@@ -13,7 +13,7 @@ pub(super) enum ChunkId {
     Marker,              // b"MARK" optional
     FormatVersion,       // b"FVER" optional AIFF-C only
     Instrument,          // b"INST"
-    MIDI,                // b"MIDI"
+    Midi,                // b"MIDI"
     AudioRecording,      // b"AESD"
     ApplicationSpecific, // b"APPL"
     Comment,             // b""COMT"
@@ -39,7 +39,7 @@ impl TryFrom<&[u8]> for ChunkId {
             b"FVER" => Ok(ChunkId::FormatVersion),
             b"MARK" => Ok(ChunkId::Marker),
             b"INST" => Ok(ChunkId::Instrument),
-            b"MIDI" => Ok(ChunkId::MIDI),
+            b"MIDI" => Ok(ChunkId::Midi),
             b"AESD" => Ok(ChunkId::AudioRecording),
             b"APPL" => Ok(ChunkId::ApplicationSpecific),
             b"COMT" => Ok(ChunkId::Comment),
@@ -237,7 +237,7 @@ mod tests {
 
         let b = b"MIDI";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();
-        assert_eq!(chunk, ChunkId::MIDI);
+        assert_eq!(chunk, ChunkId::Midi);
 
         let b = b"AESD";
         let chunk: ChunkId = b.as_slice().try_into().unwrap();

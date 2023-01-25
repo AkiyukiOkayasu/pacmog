@@ -128,12 +128,12 @@ impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
         let reader = PcmReader::new(input);
-        let player = ImaAdpcmPlayer {
+
+        ImaAdpcmPlayer {
             reader,
             frame_index: 0,
             ..Default::default()
-        };
-        player
+        }
     }
 
     /// Return samples value of the next frame.
@@ -154,11 +154,10 @@ impl<'a> ImaAdpcmPlayer<'a> {
         );
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
-        if self.reading_block.len() == 0 && self.nibble_queue[0].is_empty() {
+        if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
             self.update_block();
-            for ch in 0..num_channels as usize {
-                out[ch] = self.last_predicted_sample[ch];
-            }
+            out[..(num_channels as usize)]
+                .copy_from_slice(&self.last_predicted_sample[..(num_channels as usize)]);
             self.frame_index += 1; //Blockの最初のサンプルはHeaderに記録されている
             return Ok(());
         }
@@ -180,7 +179,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         }
 
         //デコード
-        for ch in 0..num_channels as usize {
+        for (ch, output_value) in out.iter_mut().enumerate().take(num_channels as usize) {
             let nibble = self.nibble_queue[ch].dequeue().unwrap();
             let (predicted_sample, table_index) = decode_sample(
                 nibble,
@@ -189,7 +188,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             );
             self.last_predicted_sample[ch] = predicted_sample;
             self.step_size_table_index[ch] = table_index;
-            out[ch] = predicted_sample;
+            *output_value = predicted_sample;
         }
 
         self.frame_index += 1;
@@ -207,7 +206,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
-            let (block, block_header) = parse_block_header(&self.reading_block).unwrap(); //Headerの1ch分は4byte
+            let (block, block_header) = parse_block_header(self.reading_block).unwrap(); //Headerの1ch分は4byte
             self.last_predicted_sample[ch] = block_header.i_samp_0;
             self.step_size_table_index[ch] = block_header.b_step_table_index;
             self.reading_block = block;
@@ -228,8 +227,11 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 }
 
+/// IMA-ADPCMのData word (32bit長)を8つのnibble(4bit長)にパースしたもの
+type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
+
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
-fn parse_data_word(input: &[u8]) -> IResult<&[u8], (u8, u8, u8, u8, u8, u8, u8, u8)> {
+fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
     bits::<_, _, Error<(&[u8], usize)>, _, _>(tuple((
         take(4usize),
         take(4usize),

@@ -88,7 +88,7 @@ impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
             aiff::parse_chunk,
-            || Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new(),
+            Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new,
             |mut chunk_array: Vec<aiff::Chunk, MAX_NUM_CHUNKS>, item| {
                 chunk_array.push(item).unwrap();
                 chunk_array
@@ -111,7 +111,7 @@ impl<'a> PcmReader<'a> {
                 aiff::ChunkId::FormatVersion => {}
                 aiff::ChunkId::Marker => {}
                 aiff::ChunkId::Instrument => {}
-                aiff::ChunkId::MIDI => {}
+                aiff::ChunkId::Midi => {}
                 aiff::ChunkId::AudioRecording => {}
                 aiff::ChunkId::ApplicationSpecific => {}
                 aiff::ChunkId::Comment => {}
@@ -122,13 +122,13 @@ impl<'a> PcmReader<'a> {
                 aiff::ChunkId::Unknown => {}
             }
         }
-        return Ok((input, &[]));
+        Ok((input, &[]))
     }
 
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
             wav::parse_chunk,
-            || Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new(),
+            Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new,
             |mut chunk_array: Vec<wav::Chunk, MAX_NUM_CHUNKS>, item| {
                 chunk_array.push(item).unwrap();
                 chunk_array
@@ -155,9 +155,9 @@ impl<'a> PcmReader<'a> {
                 }
                 wav::ChunkId::Fact => {}
                 wav::ChunkId::IDv3 => {}
-                wav::ChunkId::JUNK => {}
-                wav::ChunkId::LIST => {}
-                wav::ChunkId::PEAK => {}
+                wav::ChunkId::Junk => {}
+                wav::ChunkId::List => {}
+                wav::ChunkId::Peak => {}
                 wav::ChunkId::Unknown => {}
             }
         }
@@ -176,7 +176,7 @@ impl<'a> PcmReader<'a> {
                 unreachable!();
             }
         }
-        return Ok((input, &[]));
+        Ok((input, &[]))
     }
 
     /// * 'input' - PCM data byte array
@@ -240,19 +240,19 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i16::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i24::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = le_i32::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 _ => bail!("Unsupported bit-depth"),
             }
@@ -263,19 +263,19 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i16::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i24::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
                     let (_remains, sample) = be_i32::<_, Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 _ => bail!("Unsupported bit-depth"),
             }
@@ -285,12 +285,12 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
                 32 => {
                     //32bit float
                     let (_remains, sample) = le_f32::<_, Error<_>>(data).finish().unwrap();
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 64 => {
                     //64bit float
                     let (_remains, sample) = le_f64::<_, Error<_>>(data).finish().unwrap();
-                    return Ok(sample as f32); // TODO f32にダウンキャストするべきなのか検討
+                    Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => bail!("Unsupported bit-depth"),
             }
@@ -300,12 +300,12 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
                 32 => {
                     //32bit float
                     let (_remains, sample) = be_f32::<_, Error<_>>(data).finish().unwrap();
-                    return Ok(sample);
+                    Ok(sample)
                 }
                 64 => {
                     //64bit float
                     let (_remains, sample) = be_f64::<_, Error<_>>(data).finish().unwrap();
-                    return Ok(sample as f32); // TODO f32にダウンキャストするべきなのか検討
+                    Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => bail!("Unsupported bit-depth"),
             }
@@ -362,7 +362,7 @@ impl<'a> PcmPlayer<'a> {
             "Invalid output buffer length"
         );
 
-        if self.reading_data.len() <= 0 {
+        if self.reading_data.is_empty() {
             if self.loop_playing {
                 self.set_position(0);
             } else {

@@ -3130,7 +3130,7 @@ fn wav_player_32bit() {
 
     // test first 10 samples
     for i in 0..10 {
-        if let Ok(_) = player.get_next_frame(b) {
+        if player.get_next_frame(b).is_ok() {
             assert_relative_eq!(b[0], SINEWAVE[i as usize]);
         }
     }
@@ -3138,7 +3138,7 @@ fn wav_player_32bit() {
     // set_positionが正しいかをtest
     player.set_position(0);
     for i in 0..10 {
-        if let Ok(_) = player.get_next_frame(b) {
+        if player.get_next_frame(b).is_ok() {
             assert_relative_eq!(b[0], SINEWAVE[i as usize]);
         }
     }
@@ -3146,14 +3146,14 @@ fn wav_player_32bit() {
     player.set_position(0);
     //末尾まで再生
     for _ in 0..spec.num_samples {
-        if let Ok(_) = player.get_next_frame(b) {}
+        player.get_next_frame(b).unwrap();
     }
 
     // 末尾まで再生した後は正しくErrを返すかをテスト
     for _ in 0..10 {
         let e = player.get_next_frame(b);
         match e {
-            Ok(_) => assert!(false),
+            Ok(_) => unreachable!(),
             Err(_) => continue,
         }
     }
@@ -3162,12 +3162,12 @@ fn wav_player_32bit() {
     player.set_position(0);
     // 末尾まで再生
     for _ in 0..spec.num_samples {
-        if let Ok(_) = player.get_next_frame(b) {}
+        player.get_next_frame(b).unwrap();
     }
 
     // ループ再生が正しく機能するかをtest
     for i in 0..10 {
-        if let Ok(_) = player.get_next_frame(b) {
+        if player.get_next_frame(b).is_ok() {
             assert_relative_eq!(b[0], SINEWAVE[i as usize]);
         }
     }
