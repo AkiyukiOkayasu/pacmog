@@ -35,6 +35,7 @@ jobs:
         cargo build --example beep_imaadpcm_stereo
         cargo build --example print_sample_values
         cargo build --example read_wav_no_std
+        cargo build --example read_ima_adpcm_no_std
     - name: Code coverage
       run: cargo llvm-cov
     - name: Clippy
