@@ -2,6 +2,7 @@
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 use anyhow::ensure;
+use arbitrary_int::u4;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
 use nom::error::Error;
@@ -48,22 +49,23 @@ fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     ))
 }
 
-/// * 'nibble' - 4bit signed int data [-8..+7]
+/// * 'nibble' - 4bit unsigned int data
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
-fn decode_sample(nibble: u8, last_predicted_sample: i16, step_size_table_index: i8) -> (i16, i8) {
+fn decode_sample(nibble: u4, last_predicted_sample: i16, step_size_table_index: i8) -> (i16, i8) {
     // calculate difference = (originalSample + 1⁄2) * stepsize/4:
     let mut diff = 0i32;
     let step_size = STEP_SIZE_TABLE[step_size_table_index as usize] as i32;
+    let n = nibble.value();
 
     // perform multiplication through repetitive addition
-    if (nibble & 4) == 4 {
+    if (n & 4) == 4 {
         diff += step_size;
     }
-    if (nibble & 2) == 2 {
+    if (n & 2) == 2 {
         diff += step_size >> 1;
     }
-    if (nibble & 1) == 1 {
+    if (n & 1) == 1 {
         diff += step_size >> 2;
     }
 
@@ -71,7 +73,7 @@ fn decode_sample(nibble: u8, last_predicted_sample: i16, step_size_table_index: 
     diff += step_size >> 3;
 
     // account for sign bit
-    if (nibble & 8) == 8 {
+    if (n & 8) == 8 {
         diff = -diff;
     }
 
@@ -84,9 +86,9 @@ fn decode_sample(nibble: u8, last_predicted_sample: i16, step_size_table_index: 
 }
 
 /// step_sizeの更新
-fn compute_step_size(nibble: u8, mut step_size_table_index: i8) -> i8 {
+fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
     // adjust index into step_size lookup table using original_sample
-    step_size_table_index += INDEX_TABLE[nibble as usize];
+    step_size_table_index += INDEX_TABLE[nibble.value() as usize];
     step_size_table_index = step_size_table_index.clamp(0, 88); //check overflow and underflow
     step_size_table_index
 }
@@ -121,7 +123,7 @@ pub struct ImaAdpcmPlayer<'a> {
     /// 現在読み込み中のIMA-ADPCMのブロック.
     reading_block: &'a [u8],
     /// Data word読み込み時のnibble配列を保管するqueue.
-    nibble_queue: [Queue<u8, 9>; MAX_NUM_CHANNELS], //todo Queueサイズは2の冪乗の方がパフォーマンスよい。
+    nibble_queue: [Queue<u4, 9>; MAX_NUM_CHANNELS], //todo Queueサイズは2の冪乗の方がパフォーマンスよい。
 }
 
 impl<'a> ImaAdpcmPlayer<'a> {
@@ -167,14 +169,14 @@ impl<'a> ImaAdpcmPlayer<'a> {
             for ch in 0..num_channels as usize {
                 let (remains, nibbles) = parse_data_word(self.reading_block).unwrap();
                 self.reading_block = remains;
-                self.nibble_queue[ch].enqueue(nibbles.1).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.0).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.3).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.2).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.5).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.4).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.7).unwrap();
-                self.nibble_queue[ch].enqueue(nibbles.6).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.1)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.0)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.3)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.2)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.5)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.4)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.7)).unwrap();
+                self.nibble_queue[ch].enqueue(u4::new(nibbles.6)).unwrap();
             }
         }
 
@@ -247,10 +249,12 @@ fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
 #[cfg(test)]
 mod tests {
     use crate::imaadpcm::decode_sample;
+    use arbitrary_int::u4;
 
     #[test]
     fn ima_adpcm_decode() {
-        let (sample, step_size_table_index) = decode_sample(3, -30976, 24);
+        let nibble = u4::new(3);
+        let (sample, step_size_table_index) = decode_sample(nibble, -30976, 24);
         assert_eq!(sample, -30913); //0x873F
         assert_eq!(step_size_table_index, 23);
     }
