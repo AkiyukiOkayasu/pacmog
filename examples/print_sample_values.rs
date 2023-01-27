@@ -12,7 +12,7 @@ fn main() {
     // Print and export 3000 samples values to txt file
     for i in 0..3000 {
         let s = reader.read_sample(0, i).unwrap();
-        println!("{}: {}", i, s);
-        write!(file, "{}f32, ", s).unwrap();
+        println!("{i}: {s}");
+        write!(file, "{s}f32, ").unwrap();
     }
 }
