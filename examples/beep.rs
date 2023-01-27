@@ -12,7 +12,7 @@ fn main() {
     println!("Default output device: {:?}", device.name());
 
     let config = device.default_output_config().unwrap();
-    println!("Default output config: {:?}", config);
+    println!("Default output config: {config:?}");
     let channels = config.channels() as usize;
 
     let reader = PcmReader::new(wav);
@@ -20,7 +20,7 @@ fn main() {
 
     println!("PCM spec: {:?}", reader.get_pcm_specs());
 
-    let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+    let err_fn = |err| eprintln!("an error occurred on stream: {err}");
     let (complete_tx, complete_rx) = mpsc::sync_channel::<()>(1);
 
     let stream = device
