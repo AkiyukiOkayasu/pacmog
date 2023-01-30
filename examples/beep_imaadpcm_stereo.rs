@@ -45,6 +45,7 @@ fn main() {
                 }
             },
             err_fn,
+            None,
         )
         .unwrap();
 

@@ -85,12 +85,8 @@ fn decode_sample(
         diff = -diff;
     }
 
-    // let mut predicted_sample = last_predicted_sample as i32 + diff; // adjust predicted sample based on calculated difference:
     let predicted_sample = last_predicted_sample.saturating_add(I1F15::from_bits(diff as i16));
-    // predicted_sample = predicted_sample.clamp(-32768, 32767); // check for overflow and underflow
-
     let step_size_table_index = compute_step_size(nibble, step_size_table_index);
-
     (predicted_sample, step_size_table_index)
 }
 
