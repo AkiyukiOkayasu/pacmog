@@ -1,8 +1,7 @@
 //! Read IMA-ADPCM file in no_std environment.
 
 #![no_std]
-use fixed::types::I1F15;
-use pacmog::imaadpcm::ImaAdpcmPlayer;
+use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 
 fn main() {
     let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");

@@ -3,13 +3,15 @@
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 use anyhow::ensure;
 use arbitrary_int::u4;
-use fixed::types::I1F15;
+// use fixed::types::I1F15;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
 use nom::error::Error;
 use nom::number::complete::{le_i16, le_i8, le_u8};
 use nom::sequence::tuple;
 use nom::IResult;
+
+pub use fixed::types::I1F15;
 
 /// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
@@ -255,9 +257,8 @@ fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
 
 #[cfg(test)]
 mod tests {
-    use crate::imaadpcm::decode_sample;
+    use crate::imaadpcm::{decode_sample, I1F15};
     use arbitrary_int::u4;
-    use fixed::types::I1F15;
 
     #[test]
     fn ima_adpcm_decode() {

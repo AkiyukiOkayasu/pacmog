@@ -1,6 +1,8 @@
 use approx::assert_relative_eq;
-use fixed::types::I1F15;
-use pacmog::{imaadpcm::ImaAdpcmPlayer, AudioFormat, PcmPlayer, PcmReader};
+use pacmog::{
+    imaadpcm::{ImaAdpcmPlayer, I1F15},
+    AudioFormat, PcmPlayer, PcmReader,
+};
 
 const SINEWAVE: [f32; 3000] = [
     0f32,
