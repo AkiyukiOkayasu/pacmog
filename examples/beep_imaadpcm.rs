@@ -1,12 +1,13 @@
 //! Play a sample mono ADPCM file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use fixed::types::I1F15;
 use pacmog::imaadpcm::ImaAdpcmPlayer;
 use std::sync::mpsc;
 
 fn main() {
     let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
 
     let host = cpal::default_host();
     let device = host.default_output_device().unwrap();
@@ -30,7 +31,7 @@ fn main() {
                     match player.get_next_frame(buf) {
                         Ok(_) => {
                             for (_ch, sample) in frame.iter_mut().enumerate() {
-                                *sample = buf[0] as f32 / i16::MAX as f32;
+                                *sample = buf[0].to_num::<f32>();
                             }
                         }
                         Err(e) => {

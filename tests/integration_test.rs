@@ -3316,12 +3316,12 @@ fn ima_adpcm_4bit() {
     assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
     assert_eq!(spec.bit_depth, 4);
 
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
     let buf = buffer.as_mut_slice();
 
     for i in 0..10 {
         player.get_next_frame(buf).unwrap();
-        let s = buf[0] as f32 / i16::MAX as f32;
+        let s = buf[0].to_num::<f32>();
         assert_relative_eq!(s, SINEWAVE[i as usize], epsilon = 0.3f32);
     }
 }
@@ -3337,7 +3337,7 @@ fn ima_adpcm_4bit_play_to_end() {
     assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
     assert_eq!(spec.bit_depth, 4);
 
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
     let buf = buffer.as_mut_slice();
 
     // Play to the end
@@ -3374,13 +3374,13 @@ fn ima_adpcm_4bit_2ch() {
     assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
     assert_eq!(spec.bit_depth, 4);
 
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
     let buf = buffer.as_mut_slice();
 
     for i in 0..SINEWAVE.len() as u32 {
         player.get_next_frame(buf).unwrap();
-        let l = buf[0] as f32 / i16::MAX as f32;
-        let r = buf[1] as f32 / i16::MAX as f32;
+        let l = buf[0].to_num::<f32>();
+        let r = buf[1].to_num::<f32>();
         assert_relative_eq!(l, SINEWAVE[i as usize], epsilon = 0.3f32);
         assert_relative_eq!(r, SINEWAVE[i as usize], epsilon = 0.3f32);
     }
@@ -3398,7 +3398,7 @@ fn ima_adpcm_4bit_2ch_play_to_end() {
     assert_eq!(spec.audio_format, AudioFormat::ImaAdpcmLe);
     assert_eq!(spec.bit_depth, 4);
 
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
     let buf = buffer.as_mut_slice();
 
     // Play to the end
