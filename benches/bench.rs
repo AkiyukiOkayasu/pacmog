@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pacmog::imaadpcm::ImaAdpcmPlayer;
+use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 use pacmog::PcmReader;
 
 fn parse_wav(c: &mut Criterion) {
@@ -28,7 +28,7 @@ fn read_sample(c: &mut Criterion) {
 
 fn parse_decode_ima_adpcm(c: &mut Criterion) {
     let data = include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut buffer: [i16; 2] = [0i16, 0i16];
+    let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
 
     c.bench_function("Decode IMA-ADPCM", |b| {
         let mut player = ImaAdpcmPlayer::new(data);

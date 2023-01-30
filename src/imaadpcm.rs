@@ -3,12 +3,15 @@
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 use anyhow::ensure;
 use arbitrary_int::u4;
+// use fixed::types::I1F15;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
 use nom::error::Error;
 use nom::number::complete::{le_i16, le_i8, le_u8};
 use nom::sequence::tuple;
 use nom::IResult;
+
+pub use fixed::types::I1F15;
 
 /// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
@@ -29,7 +32,7 @@ const MAX_NUM_CHANNELS: usize = 2;
 /// * 'b_step_table_index' - The current index into the step table array. [0-88]
 #[derive(Default, Debug)]
 struct BlockHeader {
-    i_samp_0: i16,
+    i_samp_0: I1F15,
     b_step_table_index: i8,
 }
 
@@ -37,6 +40,7 @@ struct BlockHeader {
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     let (input, i_samp_0) = le_i16(input)?;
+    let i_samp_0 = I1F15::from_bits(i_samp_0);
     let (input, b_step_table_index) = le_i8(input)?;
     let (input, _reserved) = le_u8(input)?;
 
@@ -52,7 +56,11 @@ fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
 /// * 'nibble' - 4bit unsigned int data
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
-fn decode_sample(nibble: u4, last_predicted_sample: i16, step_size_table_index: i8) -> (i16, i8) {
+fn decode_sample(
+    nibble: u4,
+    last_predicted_sample: I1F15,
+    step_size_table_index: i8,
+) -> (I1F15, i8) {
     // calculate difference = (originalSample + 1⁄2) * stepsize/4:
     let mut diff = 0i32;
     let step_size = STEP_SIZE_TABLE[step_size_table_index as usize] as i32;
@@ -77,12 +85,13 @@ fn decode_sample(nibble: u4, last_predicted_sample: i16, step_size_table_index: 
         diff = -diff;
     }
 
-    let mut predicted_sample = last_predicted_sample as i32 + diff; // adjust predicted sample based on calculated difference:
-    predicted_sample = predicted_sample.clamp(-32768, 32767); // check for overflow and underflow
+    // let mut predicted_sample = last_predicted_sample as i32 + diff; // adjust predicted sample based on calculated difference:
+    let predicted_sample = last_predicted_sample.saturating_add(I1F15::from_bits(diff as i16));
+    // predicted_sample = predicted_sample.clamp(-32768, 32767); // check for overflow and underflow
 
     let step_size_table_index = compute_step_size(nibble, step_size_table_index);
 
-    (predicted_sample as i16, step_size_table_index)
+    (predicted_sample, step_size_table_index)
 }
 
 /// step_sizeの更新
@@ -117,7 +126,7 @@ pub struct ImaAdpcmPlayer<'a> {
     /// 現在読んでいるサンプル位置.
     frame_index: u32,
     /// デコードされた直近の値.
-    last_predicted_sample: [i16; MAX_NUM_CHANNELS],
+    last_predicted_sample: [I1F15; MAX_NUM_CHANNELS],
     /// STEP_SIZE_TABLEのindex.
     step_size_table_index: [i8; MAX_NUM_CHANNELS],
     /// 現在読み込み中のIMA-ADPCMのブロック.
@@ -140,7 +149,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [i16]) -> anyhow::Result<()> {
+    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> anyhow::Result<()> {
         let num_channels = self.reader.specs.num_channels;
 
         // outバッファーのチャンネル数が不足
@@ -248,14 +257,14 @@ fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
 
 #[cfg(test)]
 mod tests {
-    use crate::imaadpcm::decode_sample;
+    use crate::imaadpcm::{decode_sample, I1F15};
     use arbitrary_int::u4;
 
     #[test]
     fn ima_adpcm_decode() {
         let nibble = u4::new(3);
-        let (sample, step_size_table_index) = decode_sample(nibble, -30976, 24);
-        assert_eq!(sample, -30913); //0x873F
+        let (sample, step_size_table_index) = decode_sample(nibble, I1F15::from_bits(-30976), 24);
+        assert_eq!(sample, I1F15::from_bits(-30913)); //0x873F
         assert_eq!(step_size_table_index, 23);
     }
 }
