@@ -3009,6 +3009,14 @@ const SINEWAVE: [f32; 3000] = [
 fn fixed_test() {
     let hoge = I1F15::from_num(0.5);
     let fuga = I1F15::from_num(0.1);
+    let max = I1F15::from_bits(32767);
+    let min = I1F15::from_bits(-32768);
+    let zero = I1F15::from_bits(0);
+    assert_eq!(max, I1F15::MAX); //MAX≒1.0
+    assert_eq!(min, I1F15::MIN); //MIN=-1.0
+    assert_eq!(min, -1.0);
+    assert_eq!(zero, I1F15::ZERO);
+    assert_eq!(zero, 0);
     assert_eq!(hoge, 0.5);
     assert_eq!(fuga.to_ne_bytes(), I1F15::from_num(0.1).to_ne_bytes());
     let aaa = hoge.checked_mul(fuga).unwrap();
