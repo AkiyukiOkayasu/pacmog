@@ -14,7 +14,7 @@ rust-version = "1.66"
 [dependencies]
 anyhow = {version = "1.0", default-features = false }
 arbitrary-int = {version = "1.2.3", default-features = false }
-fixed = "1.20.0"
+fixed = "1.22.1"
 heapless = "0.7.16"
 nom = {version = "7.1.2", default-features = false }
 
