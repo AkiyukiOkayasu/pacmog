@@ -273,10 +273,16 @@ mod tests {
     use crate::imaadpcm::{decode_sample, I1F15};
     use arbitrary_int::u4;
 
+    // http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf
+    // P.32 4-bit ADPCM to 16-bit Linear Decompression
     #[test]
     fn ima_adpcm_decode() {
         let nibble = u4::new(3);
-        let (sample, step_size_table_index) = decode_sample(nibble, I1F15::from_bits(-30976), 24);
+        let (sample, step_size_table_index) = decode_sample(
+            nibble,
+            I1F15::from_bits(-30976), //0x8700
+            24,
+        );
         assert_eq!(sample, I1F15::from_bits(-30913)); //0x873F
         assert_eq!(step_size_table_index, 23);
     }
