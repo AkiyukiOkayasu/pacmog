@@ -38,6 +38,7 @@ struct BlockHeader {
 
 /// IMA-ADPCMのHeader Wordをパースする
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
+/// http://elm-chan.org/junk/adpcm/RIFF_NEW.pdf
 fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
     let (input, i_samp_0) = le_i16(input)?;
     let i_samp_0 = I1F15::from_bits(i_samp_0);
