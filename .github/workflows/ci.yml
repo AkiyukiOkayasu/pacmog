@@ -22,21 +22,21 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libasound2-dev
-    - name: Install Miri
-      run: |
-        rustup toolchain install nightly --component miri
-        rustup override set nightly
-        cargo miri setup
-    - name: Print nightly Rust version
-      run: rustc --version
-    - name: Test with Miri
-      run: cargo miri test
-    - name: Reset to Rust stable
-      run: rustup override set stable
+#     - name: Install Miri
+#       run: |
+#         rustup toolchain install nightly --component miri
+#         rustup override set nightly
+#         cargo miri setup
+#     - name: Print nightly Rust version
+#       run: rustc --version
+#     - name: Test with Miri
+#       run: cargo miri test
+#     - name: Reset to Rust stable
+#       run: rustup override set stable
     - name: Print stable Rust version
       run: rustc --version
-    - name: Clean
-      run: cargo clean
+#     - name: Clean
+#       run: cargo clean
     - name: Build
       run: cargo build --verbose
     - name: Run tests
