@@ -84,6 +84,7 @@ pub struct PcmReader<'a> {
     pub(crate) specs: PcmSpecs,
     pub(crate) data: &'a [u8],
 }
+
 impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
@@ -206,6 +207,7 @@ impl<'a> PcmReader<'a> {
     }
 
     /// Returns basic information about the PCM file.
+    #[must_use]
     pub fn get_pcm_specs(&self) -> PcmSpecs {
         self.specs.clone()
     }
