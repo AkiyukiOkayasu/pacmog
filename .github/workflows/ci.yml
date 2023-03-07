@@ -1,10 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [ opened, synchronize, reopened ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,23 +22,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libasound2-dev
-#     - name: Install Miri
-#       run: |
-#         rustup toolchain install nightly --component miri
-#         rustup override set nightly
-#         cargo miri setup
-#     - name: Print nightly Rust version
-#       run: rustc --version
-#     - name: Test with Miri
-#       run: cargo miri test
-#     - name: Reset to Rust stable
-#       run: rustup override set stable
     - name: Print stable Rust version
       run: rustc --version
     - name: Formatter
       run: cargo fmt -- --check
-#     - name: Clean
-#       run: cargo clean
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -52,7 +38,21 @@ jobs:
         cargo build --example print_sample_values
         cargo build --example read_wav_no_std
         cargo build --example read_ima_adpcm_no_std
+    - name: gh command
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh pr list
     - name: Code coverage
-      run: cargo llvm-cov
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
+      run: |        
+        cargo llvm-cov --html
+        gh pr comment ${{ github.event.pull_request.number }} -F target/llvm-cov/html/index.html --repo ${{ github.repository }}
     - name: Clippy
-      run: cargo clippy -v --all-targets 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
+      run: |
+        echo -e "# Clippy  \n" > clippy.txt
+        cargo clippy -v --all-targets >> clippy.txt
+        gh pr comment ${{ github.event.pull_request.number }} -F ./clippy.txt --repo ${{ github.repository }}
+
