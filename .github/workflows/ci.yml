@@ -38,6 +38,10 @@ jobs:
         cargo build --example print_sample_values
         cargo build --example read_wav_no_std
         cargo build --example read_ima_adpcm_no_std
+    - name: gh command
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh pr list
     - name: Code coverage
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
