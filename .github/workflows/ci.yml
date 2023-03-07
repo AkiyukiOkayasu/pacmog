@@ -46,14 +46,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
       run: |
-        echo "# LLVM code coverage  " > cov.txt        
-        cargo llvm-cov >> cov.txt
+        echo -e "# LLVM code coverage  \n" > cov.txt
+        cargo llvm-cov --html >> cov.txt
         gh pr comment ${{ github.event.pull_request.number }} -F ./cov.txt --repo ${{ github.repository }}
     - name: Clippy
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
       run: |
-        echo "# Clippy" > clippy.txt
+        echo -e "# Clippy  \n" > clippy.txt
         cargo clippy -v --all-targets >> clippy.txt
         gh pr comment ${{ github.event.pull_request.number }} -F ./clippy.txt --repo ${{ github.repository }}
 
