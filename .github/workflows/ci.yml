@@ -44,18 +44,16 @@ jobs:
       run: gh pr list
     - name: Code coverage
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        URL: ${{ github.event.pull_requests.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
       run: |
         echo "# LLVM code coverage  " > cov.txt        
         cargo llvm-cov >> cov.txt
-        gh pr comment -F ./cov.txt "${URL}"
+        gh pr comment ${{ github.event.pull_request.number }} -F ./cov.txt --repo ${{ github.repository }}
     - name: Clippy
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        URL: ${{ github.event.pull_requests.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        
       run: |
         echo "# Clippy" > clippy.txt
         cargo clippy -v --all-targets >> clippy.txt
-        gh pr comment -F ./clippy.txt "${URL}"
+        gh pr comment ${{ github.event.pull_request.number }} -F ./clippy.txt --repo ${{ github.repository }}
 
