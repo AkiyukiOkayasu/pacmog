@@ -1,10 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [ opened, synchronize, reopened ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +18,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
     - uses: taiki-e/install-action@cargo-llvm-cov
+    - uses: actions/github-script@v6
     - name: install libasound2-dev
       run: |
         sudo apt-get update
@@ -40,6 +40,19 @@ jobs:
         cargo build --example read_wav_no_std
         cargo build --example read_ima_adpcm_no_std
     - name: Code coverage
-      run: cargo llvm-cov
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        URL: ${{ github.event.pull_requests.html_url }}
+      run: |
+        echo "# LLVM code coverage  " > cov.txt        
+        cargo llvm-cov >> cov.txt
+        gh pr comment -F ./cov.txt "${URL}"
     - name: Clippy
-      run: cargo clippy -v --all-targets 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        URL: ${{ github.event.pull_requests.html_url }}
+      run: |
+        echo "# Clippy" > clippy.txt
+        cargo clippy -v --all-targets >> clippy.txt
+        gh pr comment -F ./clippy.txt "${URL}"
+
