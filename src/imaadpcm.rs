@@ -107,7 +107,7 @@ fn decode_sample(
     (predicted_sample, step_size_table_index)
 }
 
-/// step_sizeの更新
+/// Update step_size of IMA-ADPCM table
 fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
     // adjust index into step_size lookup table using original_sample
     step_size_table_index += INDEX_TABLE[nibble.value() as usize];
@@ -115,7 +115,7 @@ fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
     step_size_table_index
 }
 
-/// サンプル数を計算する.
+/// Calculate the number of samples per channel for IMA-ADPCM files.
 pub(crate) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
@@ -136,16 +136,17 @@ pub(crate) fn calc_num_samples_per_channel(
 pub struct ImaAdpcmPlayer<'a> {
     /// A reader to access basic information about the PCM file.
     pub reader: PcmReader<'a>,
-    /// 現在読んでいるサンプル位置.
+    /// Frame index of the current block.
     frame_index: u32,
-    /// デコードされた直近の値.
+    /// The last decoded sample value.
     last_predicted_sample: [I1F15; MAX_NUM_CHANNELS],
-    /// STEP_SIZE_TABLEのindex.
+    /// The current index of STEP_SIZE_TABLE.
     step_size_table_index: [i8; MAX_NUM_CHANNELS],
-    /// 現在読み込み中のIMA-ADPCMのブロック.
+    /// The current block of IMA-ADPCM being read.
     reading_block: &'a [u8],
-    /// Data word読み込み時のnibble配列を保管するqueue.
-    nibble_queue: [Queue<u4, 9>; MAX_NUM_CHANNELS], //todo Queueサイズは2の冪乗の方がパフォーマンスよい。
+    /// A queue that stores nibble arrays when reading data words.
+    /// TODO: Queue size is better to be a power of 2 for performance.
+    nibble_queue: [Queue<u4, 9>; MAX_NUM_CHANNELS],
 }
 
 impl<'a> ImaAdpcmPlayer<'a> {
