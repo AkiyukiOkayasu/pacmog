@@ -25,6 +25,8 @@
 //! }
 //! ```
 
+#![cfg_attr(not(feature = "aiff"), no_std)]
+
 use anyhow::{bail, ensure};
 use core::f32;
 use heapless::Vec;
@@ -35,6 +37,7 @@ use nom::number::complete::{
 use nom::Finish;
 use nom::{multi::fold_many1, IResult};
 
+#[cfg(feature = "aiff")]
 mod aiff;
 pub mod imaadpcm;
 mod wav;
@@ -86,6 +89,7 @@ pub struct PcmReader<'a> {
 }
 
 impl<'a> PcmReader<'a> {
+    #[cfg(feature = "aiff")]
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
             aiff::parse_chunk,
@@ -195,6 +199,7 @@ impl<'a> PcmReader<'a> {
         };
 
         //AIFFの場合
+        #[cfg(feature = "aiff")]
         if let Ok((input, _aiff)) = aiff::parse_aiff_header(input) {
             // assert_eq!((file_length - 8) as u32, aiff.size);
             if let Ok((_, _)) = reader.parse_aiff(input) {

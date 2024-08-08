@@ -7,7 +7,7 @@
 pacmog is a decoding library for the PCM file.  
 Designed for use in playing the PCM file embedded in microcontroller firmware.  
 Rust has an include_bytes! macro to embed the byte sequence in the program. Using it, PCM files can be embedded in firmware and used for playback.  
-pacmog works with no_std by default.  
+pacmog works with no_std by default. AIFF is supported via the 'aiff' feature which requires std. 
 
 | Format          | Status |
 | :---            | :---: |
@@ -64,4 +64,4 @@ cargo criterion
 ## no_std
 
 pacmog works with no_std by default.  
-No setup is needed.  
+No setup is needed. The 'aiff' feature will disable no_std. 

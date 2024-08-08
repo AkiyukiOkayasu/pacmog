@@ -3037,6 +3037,7 @@ fn wav_linearpcm_specs() {
     assert_eq!(spec.num_samples, 240000);
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_linearpcm_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
@@ -3061,6 +3062,7 @@ fn wav_float32_specs() {
     assert_eq!(spec.num_samples, 240000);
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_float32_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
@@ -3217,6 +3219,7 @@ fn wav_64bit_float() {
     }
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_16bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
@@ -3238,6 +3241,7 @@ fn aiff_16bit() {
     }
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_24bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
@@ -3255,6 +3259,7 @@ fn aiff_24bit() {
     }
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_32bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
@@ -3272,6 +3277,7 @@ fn aiff_32bit() {
     }
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_32bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
@@ -3289,6 +3295,7 @@ fn aiff_32bit_float() {
     }
 }
 
+#[cfg_attr(not(feature = "aiff"), ignore)]
 #[test]
 fn aiff_64bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
