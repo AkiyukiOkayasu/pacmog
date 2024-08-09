@@ -196,8 +196,8 @@ fn extended2double(buffer: &[u8]) -> f64 {
     mantissa &= 0x7FFFFFFFFFFFFFFF;
 
     //value = (-1) ^ s * (normalizeCorrection + m / 2 ^ 63) * 2 ^ (e - 16383)
-    sign * (normalize_correction + mantissa as f64 / 2f64.powf(63f64))
-        * 2f64.powf(exponent as f64 - 16383f64)
+    sign * (normalize_correction + mantissa as f64 / (1u64 << 63) as f64)
+        * (1u64 << (exponent as i32 - 16383)) as f64
 }
 
 #[cfg(test)]
