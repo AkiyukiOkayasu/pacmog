@@ -1,6 +1,6 @@
 [package]
 name = "pacmog"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Akiyuki Okayasu <akiyuki.okayasu@gmail.com>"]
 description = "PCM decording library"
 categories = ["multimedia::audio", "no-std", "embedded", "multimedia::encoding"]
