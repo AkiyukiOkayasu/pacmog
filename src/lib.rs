@@ -24,6 +24,7 @@
 //!     }
 //! }
 //! ```
+#![cfg_attr(not(test), no_std)]
 
 use anyhow::{bail, ensure};
 use core::f32;
