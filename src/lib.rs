@@ -180,13 +180,15 @@ impl<'a> PcmReader<'a> {
         Ok((input, &[]))
     }
 
+    /// PCMReader is a struct that reads PCM data from a byte array.
+    /// It supports Linear PCM and IEEE Float.
     /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Self {
         let file_length = input.len();
 
         let mut reader: PcmReader = Default::default();
 
-        //WAVの場合
+        //WAVE
         if let Ok((input, riff)) = wav::parse_riff_header(input) {
             assert_eq!((file_length - 8) as u32, riff.size);
             if let Ok((_, _)) = reader.parse_wav(input) {
@@ -194,7 +196,7 @@ impl<'a> PcmReader<'a> {
             }
         };
 
-        //AIFFの場合
+        //AIFF
         if let Ok((input, _aiff)) = aiff::parse_aiff_header(input) {
             // assert_eq!((file_length - 8) as u32, aiff.size);
             if let Ok((_, _)) = reader.parse_aiff(input) {
@@ -203,6 +205,7 @@ impl<'a> PcmReader<'a> {
         };
 
         //WAVでもAIFFでもなかった場合
+
         panic!();
     }
 
@@ -226,11 +229,11 @@ impl<'a> PcmReader<'a> {
     }
 }
 
-/// DATAチャンクを読んでサンプルを読みだす    
-/// フォーマットに関わらず+/-1の範囲に正規化された数を返す
-/// TODO f32以外Q15やQ23, f64などでも返せるようにしたい
-/// もしくはf32かf64を選択できるようにする
-/// 固定小数点の取得はread_raw_sample()的な関数とそのジェネリスクで対応するのがいいかもしれない
+/// Decode a sample from a byte array.
+/// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.
+/// TODO return not only f32 but also Q15, Q23, f64, etc.
+/// Or make it possible to select f32 or f64.
+/// It may be better to use a function like read_raw_sample() to get fixed-point numbers.
 fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
     match specs.audio_format {
         AudioFormat::Unknown => {
