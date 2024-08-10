@@ -1,5 +1,4 @@
-use crate::{AudioFormat, PcmSpecs};
-use anyhow::ensure;
+use crate::{error, AudioFormat, PcmSpecs};
 use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
@@ -175,11 +174,11 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
 pub(super) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
-) -> anyhow::Result<u32> {
-    ensure!(
-        spec.audio_format != AudioFormat::ImaAdpcmLe,
-        "IMA-ADPCM is not supported in calc_num_samples_per_channel"
-    );
+) -> Result<u32, error::DecodingError> {
+    if spec.audio_format == AudioFormat::ImaAdpcmLe {
+        return Err(error::DecodingError::UnsupportedFormat);
+    }
+
     Ok(data_chunk_size_in_bytes / (spec.bit_depth / 8u16 * spec.num_channels) as u32)
 }
 

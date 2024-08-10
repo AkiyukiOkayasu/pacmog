@@ -16,13 +16,11 @@
 //! }
 //! ```
 
-use crate::{AudioFormat, PcmReader, PcmSpecs};
-use anyhow::ensure;
+use crate::{error, AudioFormat, PcmReader, PcmSpecs};
 use arbitrary_int::u4;
 // use fixed::types::I1F15;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
-use nom::error::Error;
 use nom::number::complete::{le_i16, le_i8, le_u8};
 use nom::sequence::tuple;
 use nom::IResult;
@@ -119,11 +117,11 @@ fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
 pub(crate) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
-) -> anyhow::Result<u32> {
-    ensure!(
-        spec.audio_format == AudioFormat::ImaAdpcmLe,
-        "IMA-ADPCM only"
-    );
+) -> Result<u32, error::DecodingError> {
+    if spec.audio_format != AudioFormat::ImaAdpcmLe {
+        return Err(error::DecodingError::UnsupportedFormat);
+    }
+
     let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
     let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
     let num_blocks = data_chunk_size_in_bytes / num_block_align;
@@ -163,20 +161,18 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> anyhow::Result<()> {
+    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> Result<(), error::PlayerError> {
         let num_channels = self.reader.specs.num_channels;
 
         // outバッファーのチャンネル数が不足
-        ensure!(
-            out.len() >= num_channels as usize,
-            "Number of elements in \"out\" must be greater than or equal to the number of IMA-ADPCM channels"
-        );
+        if !(out.len() >= num_channels as usize) {
+            return Err(error::PlayerError::InvalidData);
+        }
 
         // 再生終了
-        ensure!(
-            self.frame_index < self.reader.specs.num_samples,
-            "Played to the end."
-        );
+        if ! (self.frame_index < self.reader.specs.num_samples) {
+            return Err(error::PlayerError::FinishedPlaying);
+        }
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
@@ -257,7 +253,7 @@ type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
 
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
 fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
-    bits::<_, _, Error<(&[u8], usize)>, _, _>(tuple((
+    bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(tuple((
         take(4usize),
         take(4usize),
         take(4usize),
