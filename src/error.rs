@@ -5,9 +5,8 @@ use embedded_error_chain::ErrorCategory;
 pub enum DecodingError {
     UnknownFormat,
     UnsupportedBitDepth,
-    UnsupportedFormat
+    UnsupportedFormat,
 }
-
 
 #[derive(Clone, Copy, ErrorCategory)]
 #[error_category(links(DecodingError))]
@@ -15,7 +14,7 @@ pub enum DecodingError {
 pub enum ReaderError {
     InvalidChannel,
     InvalidSample,
-    DecodingError
+    DecodingError,
 }
 
 #[derive(Clone, Copy, ErrorCategory)]
@@ -23,5 +22,5 @@ pub enum ReaderError {
 pub enum PlayerError {
     InvalidOutputBufferLength,
     InvalidData,
-    FinishedPlaying
+    FinishedPlaying,
 }

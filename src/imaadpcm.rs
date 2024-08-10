@@ -170,7 +170,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         }
 
         // 再生終了
-        if ! (self.frame_index < self.reader.specs.num_samples) {
+        if !(self.frame_index < self.reader.specs.num_samples) {
             return Err(error::PlayerError::FinishedPlaying);
         }
 
