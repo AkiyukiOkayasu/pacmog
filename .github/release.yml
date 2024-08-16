@@ -15,6 +15,9 @@ changelog:
     - title: Breaking Changes
       labels:
         - breaking-change
+    - title: Internal Changes
+      labels:
+        - internal-change
     - title: Other Changes
       labels:
         - "*"
