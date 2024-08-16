@@ -27,7 +27,6 @@
 #![cfg_attr(not(test), no_std)]
 
 use anyhow::{bail, ensure};
-use core::f32;
 use heapless::Vec;
 use nom::error::Error;
 use nom::number::complete::{

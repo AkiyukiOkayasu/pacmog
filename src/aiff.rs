@@ -1,5 +1,4 @@
 use crate::{AudioFormat, PcmSpecs};
-use core::convert::TryInto;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{be_i16, be_i32, be_u32};
