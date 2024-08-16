@@ -4,6 +4,20 @@ use nom::bytes::complete::{tag, take};
 use nom::number::complete::{be_i16, be_i32, be_u32};
 use nom::IResult;
 
+#[derive(thiserror::Error, Debug)]
+enum AiffError {
+    #[error("Buffer length must be exactly 10 bytes")]
+    InvalidBufferLength,
+}
+
+/// AiffErrorをnom::Errに変換する
+/// 変換時に情報が失われてしまう。とりあえずnom::error::ErrorKind::Failとしたが、IResultを使わずに実装できるか検討したい
+impl<'a> From<AiffError> for nom::Err<nom::error::Error<&'a [u8]>> {
+    fn from(_err: AiffError) -> Self {
+        nom::Err::Error(nom::error::Error::new(&[], nom::error::ErrorKind::Fail))
+    }
+}
+
 /// ckID chunkの種類
 #[derive(Debug, PartialEq, Default)]
 pub(super) enum ChunkId {
@@ -131,7 +145,7 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, bit_depth) = be_i16(input)?;
     let bit_depth = bit_depth as u16;
     let (input, sample_rate) = take(10usize)(input)?;
-    let sample_rate = extended2double(sample_rate) as u32;
+    let sample_rate = extended2double(sample_rate).map_err(|e| nom::Err::from(e))? as u32;
 
     if input.len() >= 4 {
         //AIFF-C parameters
@@ -168,8 +182,10 @@ pub(super) fn parse_ssnd(input: &[u8]) -> IResult<&[u8], SsndBlockInfo> {
 /// 80 bit floating point value according to the IEEE-754 specification and the Standard Apple Numeric Environment specification:
 /// 1 bit sign, 15 bit exponent, 1 bit normalization indication, 63 bit mantissa
 /// https://stackoverflow.com/a/3949358
-fn extended2double(buffer: &[u8]) -> f64 {
-    assert!(buffer.len() == 10);
+fn extended2double(buffer: &[u8]) -> Result<f64, AiffError> {
+    if buffer.len() != 10 {
+        return Err(AiffError::InvalidBufferLength);
+    }
 
     let sign = if (buffer[0] & 0x80) == 0x00 {
         1f64
@@ -195,8 +211,9 @@ fn extended2double(buffer: &[u8]) -> f64 {
     mantissa &= 0x7FFFFFFFFFFFFFFF;
 
     //value = (-1) ^ s * (normalizeCorrection + m / 2 ^ 63) * 2 ^ (e - 16383)
-    sign * (normalize_correction + mantissa as f64 / (1u64 << 63) as f64)
-        * (1u64 << (exponent as i32 - 16383)) as f64
+    Ok(sign
+        * (normalize_correction + mantissa as f64 / (1u64 << 63) as f64)
+        * (1u64 << (exponent as i32 - 16383)) as f64)
 }
 
 #[cfg(test)]
