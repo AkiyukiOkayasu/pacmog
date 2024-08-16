@@ -2,8 +2,8 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "main" ]
-    types: [ opened, synchronize, reopened ]
+    branches: ["main"]
+    types: [opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,33 +11,40 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v3
-    - uses: Swatinem/rust-cache@v2
-    - uses: giraffate/clippy-action@v1
-      with:
-        reporter: 'github-pr-review'
-    - name: install libasound2-dev
-      run: |
-        sudo apt-get update
-        sudo apt-get install libasound2-dev
-    - name: Print stable Rust version
-      run: rustc --version
-    - name: Formatter
-      run: cargo fmt -- --check
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run examples
-      run: |
-        cargo build --example beep
-        cargo build --example beep_imaadpcm
-        cargo build --example beep_imaadpcm_stereo
-        cargo build --example print_sample_values
-        cargo build --example read_wav_no_std
-        cargo build --example read_ima_adpcm_no_std
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
 
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - uses: giraffate/clippy-action@v1
+        with:
+          reporter: "github-pr-review"
+      - name: install libasound2-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install libasound2-dev
+      - name: Set up Rust
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Print Rust version
+        run: rustc --version
+      - name: Formatter
+        run: cargo fmt -- --check
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Run examples
+        run: |
+          cargo build --example beep
+          cargo build --example beep_imaadpcm
+          cargo build --example beep_imaadpcm_stereo
+          cargo build --example print_sample_values
+          cargo build --example read_wav_no_std
+          cargo build --example read_ima_adpcm_no_std
