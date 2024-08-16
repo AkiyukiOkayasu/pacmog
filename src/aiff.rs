@@ -122,7 +122,7 @@ pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     let (input, _) = tag(b"FORM")(input)?;
     let (input, size) = be_u32(input)?;
     let (input, _id) = alt((tag(b"AIFF"), tag(b"AIFC")))(input)?;
-    Ok((input, AiffHeader { size: size }))
+    Ok((input, AiffHeader { size }))
 }
 
 /// 先頭のチャンクを取得する
@@ -145,7 +145,7 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let (input, bit_depth) = be_i16(input)?;
     let bit_depth = bit_depth as u16;
     let (input, sample_rate) = take(10usize)(input)?;
-    let sample_rate = extended2double(sample_rate).map_err(|e| nom::Err::from(e))? as u32;
+    let sample_rate = extended2double(sample_rate).map_err(nom::Err::from)? as u32;
 
     if input.len() >= 4 {
         //AIFF-C parameters
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn extended2double_test() {
         let array: [u8; 10] = [64, 14, 187, 128, 0, 0, 0, 0, 0, 0];
-        assert_relative_eq!(extended2double(&array), 48000.0f64);
+        assert_relative_eq!(extended2double(&array).unwrap(), 48000.0f64);
     }
 
     #[test]

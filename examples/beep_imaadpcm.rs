@@ -29,7 +29,7 @@ fn main() {
                     let buf = buffer.as_mut_slice();
                     match player.get_next_frame(buf) {
                         Ok(_) => {
-                            for (_ch, sample) in frame.iter_mut().enumerate() {
+                            for sample in frame.iter_mut() {
                                 *sample = buf[0].to_num::<f32>();
                             }
                         }
