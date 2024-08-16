@@ -17,7 +17,6 @@
 //! ```
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
-use anyhow::ensure;
 use arbitrary_int::u4;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
@@ -49,6 +48,19 @@ const MAX_NUM_CHANNELS: usize = 2;
 struct BlockHeader {
     i_samp_0: I1F15,
     b_step_table_index: i8,
+}
+
+/// Error type for IMA-ADPCM.
+#[derive(Debug, thiserror::Error)]
+pub enum ImaAdpcmError {
+    #[error("IMA-ADPCM is not supported in decode_sample(). Use ImaAdpcmPlayer.")]
+    CantDecodeImaAdpcm,
+    #[error("The audio format is not IMA-ADPCM.")]
+    NotImaAdpcm,
+    #[error("The number of elements in the output buffer must be at least equal to the number of IMA-ADPCM channels.")]
+    InsufficientOutputBufferChannels,
+    #[error("Finish playing.")]
+    FinishPlaying,
 }
 
 /// IMA-ADPCMのHeader Wordをパースする
@@ -118,11 +130,11 @@ fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
 pub(crate) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
-) -> anyhow::Result<u32> {
-    ensure!(
-        spec.audio_format == AudioFormat::ImaAdpcmLe,
-        "IMA-ADPCM only"
-    );
+) -> Result<u32, ImaAdpcmError> {
+    if spec.audio_format != AudioFormat::ImaAdpcmLe {
+        return Err(ImaAdpcmError::NotImaAdpcm);
+    }
+
     let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
     let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
     let num_blocks = data_chunk_size_in_bytes / num_block_align;
@@ -162,20 +174,18 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> anyhow::Result<()> {
+    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> Result<(), ImaAdpcmError> {
         let num_channels = self.reader.specs.num_channels;
 
-        // outバッファーのチャンネル数が不足
-        ensure!(
-            out.len() >= num_channels as usize,
-            "Number of elements in \"out\" must be greater than or equal to the number of IMA-ADPCM channels"
-        );
+        // outバッファーのチャンネル数が不足している場合はエラーを返す
+        if out.len() < num_channels as usize {
+            return Err(ImaAdpcmError::InsufficientOutputBufferChannels);
+        }
 
-        // 再生終了
-        ensure!(
-            self.frame_index < self.reader.specs.num_samples,
-            "Played to the end."
-        );
+        // 再生終了している場合はエラーを返す
+        if self.frame_index >= self.reader.specs.num_samples {
+            return Err(ImaAdpcmError::FinishPlaying);
+        }
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {

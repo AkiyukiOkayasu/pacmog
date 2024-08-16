@@ -89,7 +89,7 @@ pub(super) struct Chunk<'a> {
 /// AIFFチャンクの情報
 /// * 'size' - ファイルサイズ(byte) - 8
 pub(super) struct AiffHeader {
-    pub _size: u32,
+    pub size: u32,
 }
 
 /// SSNDチャンクのOffset, BlockSize
@@ -108,7 +108,7 @@ pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
     let (input, _) = tag(b"FORM")(input)?;
     let (input, size) = be_u32(input)?;
     let (input, _id) = alt((tag(b"AIFF"), tag(b"AIFC")))(input)?;
-    Ok((input, AiffHeader { _size: size }))
+    Ok((input, AiffHeader { size: size }))
 }
 
 /// 先頭のチャンクを取得する
