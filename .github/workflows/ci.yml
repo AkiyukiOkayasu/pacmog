@@ -22,9 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - uses: giraffate/clippy-action@v1
-        with:
-          reporter: "github-pr-review"
       - name: install libasound2-dev
         run: |
           sudo apt-get update
@@ -37,6 +34,8 @@ jobs:
         run: cargo fmt -- --check
       - name: Build
         run: cargo build --verbose
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features
       - name: Run tests
         run: cargo test --verbose
       - name: Run examples
