@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
           - stable
@@ -35,7 +36,7 @@ jobs:
       - name: Build
         run: cargo build --verbose
       - name: Clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings
       - name: Run tests
         run: cargo test --verbose
       - name: Run examples
