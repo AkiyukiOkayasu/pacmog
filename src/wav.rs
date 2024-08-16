@@ -1,6 +1,5 @@
 use crate::{AudioFormat, PcmSpecs};
 use anyhow::ensure;
-use core::convert::TryInto;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{le_u16, le_u32};
 use nom::IResult;
