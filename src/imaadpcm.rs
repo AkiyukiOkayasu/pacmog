@@ -20,7 +20,6 @@ use crate::{AudioFormat, PcmReader, PcmSpecs};
 use arbitrary_int::u4;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
-use nom::error::Error;
 use nom::number::complete::{le_i16, le_i8, le_u8};
 use nom::sequence::tuple;
 use nom::IResult;
@@ -266,7 +265,7 @@ type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
 
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
 fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
-    bits::<_, _, Error<(&[u8], usize)>, _, _>(tuple((
+    bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(tuple((
         take(4usize),
         take(4usize),
         take(4usize),

@@ -27,7 +27,6 @@
 #![cfg_attr(not(test), no_std)]
 
 use heapless::Vec;
-use nom::error::Error;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
@@ -262,19 +261,22 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, LinearPcmError> {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i16::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i24::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
@@ -285,19 +287,22 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, LinearPcmError> {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i16::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i24::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
@@ -308,12 +313,14 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, LinearPcmError> {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) = le_f32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) = le_f64::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => Err(LinearPcmError::UnsupportedBitDepth),
@@ -323,12 +330,14 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, LinearPcmError> {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) = be_f32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) = be_f64::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => Err(LinearPcmError::UnsupportedBitDepth),
