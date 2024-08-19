@@ -223,7 +223,7 @@ impl<'a> PcmReader<'a> {
         };
 
         //WAVでもAIFFでもなかった場合
-
+        //TODO panicせずにエラーを返す
         panic!();
     }
 
