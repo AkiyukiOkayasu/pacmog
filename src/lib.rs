@@ -25,8 +25,6 @@
 //! }
 //! ```
 #![cfg_attr(not(test), no_std)]
-#![allow(stable_features)]
-#![feature(error_in_core)]
 
 use heapless::Vec;
 use nom::error::Error;
