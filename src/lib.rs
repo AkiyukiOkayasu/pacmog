@@ -10,7 +10,7 @@
 //! use pacmog::PcmReader;
 //!
 //! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-//! let reader = PcmReader::new(wav);
+//! let reader = PcmReader::new(wav).unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels as u32;
@@ -26,9 +26,7 @@
 //! ```
 #![cfg_attr(not(test), no_std)]
 
-use anyhow::{bail, ensure};
 use heapless::Vec;
-use nom::error::Error;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
@@ -40,6 +38,25 @@ pub mod imaadpcm;
 mod wav;
 
 const MAX_NUM_CHUNKS: usize = 16;
+
+/// Error type for LinearPCM
+#[derive(Debug, thiserror::Error)]
+pub enum LinearPcmError {
+    #[error("Unsupported bit-depth")]
+    UnsupportedBitDepth,
+    #[error("Unsupported audio format")]
+    UnsupportedAudioFormat,
+    #[error("Invalid channel")]
+    InvalidChannel,
+    #[error("Invalid sample")]
+    InvalidSample,
+    #[error("Invalid output buffer length")]
+    InvalidOutputBufferLength,
+    #[error("Finished playing")]
+    FinishPlaying,
+    #[error("RIFF or AIFF header size mismatch")]
+    HeaderSizeMismatch,
+}
 
 /// Audio format
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -96,17 +113,21 @@ impl<'a> PcmReader<'a> {
             },
         )(input)?;
 
-        for e in v {
-            assert_ne!(e.size, 0);
-            match e.id {
+        for chunk in v {
+            match chunk.id {
                 aiff::ChunkId::Common => {
-                    let (_, spec) = aiff::parse_comm(e.data)?;
+                    let (_, spec) = aiff::parse_comm(chunk.data)?;
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
-                    let (data, ssnd_block_info) = aiff::parse_ssnd(e.data)?;
-                    assert_eq!(ssnd_block_info.offset, 0); //offsetとblock_sizeはほとんどの場合で0固定。したがって0で指定されたファイルにのみ対応する。
-                    assert_eq!(ssnd_block_info.block_size, 0);
+                    let (data, ssnd_block_info) = aiff::parse_ssnd(chunk.data)?;
+                    // offset and block_size are typically 0. Therefore, this only supports files where they are set to 0.
+                    if ssnd_block_info.offset != 0 || ssnd_block_info.block_size != 0 {
+                        return Err(nom::Err::Error(nom::error::Error::new(
+                            input,
+                            nom::error::ErrorKind::Verify,
+                        )));
+                    }
                     self.data = data;
                 }
                 aiff::ChunkId::FormatVersion => {}
@@ -136,11 +157,10 @@ impl<'a> PcmReader<'a> {
             },
         )(input)?;
 
-        for e in v {
-            assert_ne!(e.size, 0);
-            match e.id {
+        for chunk in v {
+            match chunk.id {
                 wav::ChunkId::Fmt => {
-                    let (_, spec) = wav::parse_fmt(e.data)?;
+                    let (_, spec) = wav::parse_fmt(chunk.data)?;
                     self.specs.num_channels = spec.num_channels;
                     self.specs.sample_rate = spec.sample_rate;
                     self.specs.audio_format = spec.audio_format;
@@ -152,7 +172,7 @@ impl<'a> PcmReader<'a> {
                     }
                 }
                 wav::ChunkId::Data => {
-                    self.data = e.data;
+                    self.data = chunk.data;
                 }
                 wav::ChunkId::Fact => {}
                 wav::ChunkId::IDv3 => {}
@@ -181,32 +201,36 @@ impl<'a> PcmReader<'a> {
     }
 
     /// PCMReader is a struct that reads PCM data from a byte array.
-    /// It supports Linear PCM and IEEE Float.
     /// * 'input' - PCM data byte array
-    pub fn new(input: &'a [u8]) -> Self {
+    pub fn new(input: &'a [u8]) -> Result<Self, LinearPcmError> {
         let file_length = input.len();
-
         let mut reader: PcmReader = Default::default();
 
         //WAVE
         if let Ok((input, riff)) = wav::parse_riff_header(input) {
-            assert_eq!((file_length - 8) as u32, riff.size);
+            if (file_length - 8) != riff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
             if let Ok((_, _)) = reader.parse_wav(input) {
-                return reader;
+                return Ok(reader);
             }
         };
 
         //AIFF
-        if let Ok((input, _aiff)) = aiff::parse_aiff_header(input) {
-            // assert_eq!((file_length - 8) as u32, aiff.size);
+        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
+            assert_eq!((file_length - 8) as u32, aiff.size);
+            if (file_length - 8) != aiff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
             if let Ok((_, _)) = reader.parse_aiff(input) {
-                return reader;
+                return Ok(reader);
             }
         };
 
         //WAVでもAIFFでもなかった場合
-
-        panic!();
+        Err(LinearPcmError::UnsupportedAudioFormat)
     }
 
     /// Returns basic information about the PCM file.
@@ -217,9 +241,14 @@ impl<'a> PcmReader<'a> {
 
     /// Returns the value of a sample at an arbitrary position.  
     /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.  
-    pub fn read_sample(&self, channel: u32, sample: u32) -> anyhow::Result<f32> {
-        ensure!(channel < self.specs.num_channels as u32, "Invalid channel");
-        ensure!(sample < self.specs.num_samples, "Invalid sample");
+    pub fn read_sample(&self, channel: u32, sample: u32) -> Result<f32, LinearPcmError> {
+        if channel >= self.specs.num_channels as u32 {
+            return Err(LinearPcmError::InvalidChannel);
+        }
+
+        if sample >= self.specs.num_samples {
+            return Err(LinearPcmError::InvalidSample);
+        }
 
         let byte_depth = self.specs.bit_depth as u32 / 8u32;
         let byte_offset = ((byte_depth * sample * self.specs.num_channels as u32)
@@ -234,90 +263,96 @@ impl<'a> PcmReader<'a> {
 /// TODO return not only f32 but also Q15, Q23, f64, etc.
 /// Or make it possible to select f32 or f64.
 /// It may be better to use a function like read_raw_sample() to get fixed-point numbers.
-fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> anyhow::Result<f32> {
+fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, LinearPcmError> {
     match specs.audio_format {
-        AudioFormat::Unknown => {
-            bail!("Unknown audio format");
-        }
+        AudioFormat::Unknown => Err(LinearPcmError::UnsupportedAudioFormat),
         AudioFormat::LinearPcmLe => {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i16::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i24::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = le_i32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
-                _ => bail!("Unsupported bit-depth"),
+                _ => Err(LinearPcmError::UnsupportedBitDepth),
             }
         }
         AudioFormat::LinearPcmBe => {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i16::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i24::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) = be_i32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
-                _ => bail!("Unsupported bit-depth"),
+                _ => Err(LinearPcmError::UnsupportedBitDepth),
             }
         }
         AudioFormat::IeeeFloatLe => {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) = le_f32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) = le_f64::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        le_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
-                _ => bail!("Unsupported bit-depth"),
+                _ => Err(LinearPcmError::UnsupportedBitDepth),
             }
         }
         AudioFormat::IeeeFloatBe => {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) = be_f32::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) = be_f64::<_, Error<_>>(data).finish().unwrap();
+                    let (_remains, sample) =
+                        be_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
-                _ => bail!("Unsupported bit-depth"),
+                _ => Err(LinearPcmError::UnsupportedBitDepth),
             }
         }
-        AudioFormat::ImaAdpcmLe => {
-            bail!("IMA-ADPCM is not supported in decode_sample(). Use ImaAdpcmPlayer.")
-        }
+        AudioFormat::ImaAdpcmLe => Err(LinearPcmError::UnsupportedAudioFormat),
     }
 }
 
@@ -333,7 +368,9 @@ pub struct PcmPlayer<'a> {
 impl<'a> PcmPlayer<'a> {
     /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Self {
-        let reader = PcmReader::new(input);
+        //TODO error handling
+        let reader = PcmReader::new(input).unwrap();
+
         let mut player = PcmPlayer {
             reader,
             reading_data: &[],
@@ -359,19 +396,18 @@ impl<'a> PcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * ‘out’ - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [f32]) -> anyhow::Result<()> {
+    pub fn get_next_frame(&mut self, out: &mut [f32]) -> Result<(), LinearPcmError> {
         let byte_depth = self.reader.specs.bit_depth / 8;
 
-        ensure!(
-            out.len() >= self.reader.specs.num_channels as usize,
-            "Invalid output buffer length"
-        );
+        if out.len() < self.reader.specs.num_channels as usize {
+            return Err(LinearPcmError::InvalidOutputBufferLength);
+        }
 
         if self.reading_data.is_empty() {
             if self.loop_playing {
                 self.set_position(0);
             } else {
-                bail!("Finished playing");
+                return Err(LinearPcmError::FinishPlaying);
             }
         }
 

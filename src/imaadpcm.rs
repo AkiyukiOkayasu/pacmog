@@ -17,11 +17,9 @@
 //! ```
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
-use anyhow::ensure;
 use arbitrary_int::u4;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
-use nom::error::Error;
 use nom::number::complete::{le_i16, le_i8, le_u8};
 use nom::sequence::tuple;
 use nom::IResult;
@@ -49,6 +47,21 @@ const MAX_NUM_CHANNELS: usize = 2;
 struct BlockHeader {
     i_samp_0: I1F15,
     b_step_table_index: i8,
+}
+
+/// Error type for IMA-ADPCM.
+#[derive(Debug, thiserror::Error)]
+pub enum ImaAdpcmError {
+    #[error("IMA-ADPCM is not supported in decode_sample(). Use ImaAdpcmPlayer.")]
+    CantDecodeImaAdpcm,
+    #[error("The audio format is not IMA-ADPCM.")]
+    NotImaAdpcm,
+    #[error("The number of elements in the output buffer must be at least equal to the number of IMA-ADPCM channels.")]
+    InsufficientOutputBufferChannels,
+    #[error("Finish playing.")]
+    FinishPlaying,
+    #[error("Block length does not match block align")]
+    BlockLengthMismatch,
 }
 
 /// IMA-ADPCMのHeader Wordをパースする
@@ -118,11 +131,11 @@ fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
 pub(crate) fn calc_num_samples_per_channel(
     data_chunk_size_in_bytes: u32,
     spec: &PcmSpecs,
-) -> anyhow::Result<u32> {
-    ensure!(
-        spec.audio_format == AudioFormat::ImaAdpcmLe,
-        "IMA-ADPCM only"
-    );
+) -> Result<u32, ImaAdpcmError> {
+    if spec.audio_format != AudioFormat::ImaAdpcmLe {
+        return Err(ImaAdpcmError::NotImaAdpcm);
+    }
+
     let num_block_align = spec.ima_adpcm_num_block_align.unwrap() as u32;
     let num_samples_per_block = spec.ima_adpcm_num_samples_per_block.unwrap() as u32;
     let num_blocks = data_chunk_size_in_bytes / num_block_align;
@@ -151,7 +164,8 @@ pub struct ImaAdpcmPlayer<'a> {
 impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
-        let reader = PcmReader::new(input);
+        //TODO unwrapではなくきちんとエラーハンドリングする
+        let reader = PcmReader::new(input).unwrap();
 
         ImaAdpcmPlayer {
             reader,
@@ -162,24 +176,22 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> anyhow::Result<()> {
+    pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> Result<(), ImaAdpcmError> {
         let num_channels = self.reader.specs.num_channels;
 
-        // outバッファーのチャンネル数が不足
-        ensure!(
-            out.len() >= num_channels as usize,
-            "Number of elements in \"out\" must be greater than or equal to the number of IMA-ADPCM channels"
-        );
+        // outバッファーのチャンネル数が不足している場合はエラーを返す
+        if out.len() < num_channels as usize {
+            return Err(ImaAdpcmError::InsufficientOutputBufferChannels);
+        }
 
-        // 再生終了
-        ensure!(
-            self.frame_index < self.reader.specs.num_samples,
-            "Played to the end."
-        );
+        // 再生終了している場合はエラーを返す
+        if self.frame_index >= self.reader.specs.num_samples {
+            return Err(ImaAdpcmError::FinishPlaying);
+        }
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
-            self.update_block();
+            self.update_block()?;
             out[..(num_channels as usize)]
                 .copy_from_slice(&self.last_predicted_sample[..(num_channels as usize)]);
             self.frame_index += 1; //Blockの最初のサンプルはHeaderに記録されている
@@ -220,13 +232,15 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 
     /// IMA-ADPCMのブロック更新.    
-    fn update_block(&mut self) {
+    fn update_block(&mut self) -> Result<(), ImaAdpcmError> {
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
         let offset = (self.frame_index / samples_per_block) * block_align;
         self.reading_block = &self.reader.data[offset as usize..(offset + block_align) as usize]; //新しいBlockをreading_blockへ更新
 
-        assert_eq!(self.reading_block.len(), block_align as usize);
+        if self.reading_block.len() != block_align as usize {
+            return Err(ImaAdpcmError::BlockLengthMismatch);
+        }
 
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
@@ -235,6 +249,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             self.step_size_table_index[ch] = block_header.b_step_table_index;
             self.reading_block = block;
         }
+        Ok(())
     }
 
     /// Move the playback position back to the beginning.
@@ -256,7 +271,7 @@ type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
 
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
 fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
-    bits::<_, _, Error<(&[u8], usize)>, _, _>(tuple((
+    bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(tuple((
         take(4usize),
         take(4usize),
         take(4usize),
