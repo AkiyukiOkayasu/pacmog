@@ -1,6 +1,6 @@
 //! Play a sample WAV file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use pacmog::PcmReader;
+use pacmog::PcmReaderBuilder;
 use std::sync::mpsc;
 
 fn main() {
@@ -15,7 +15,7 @@ fn main() {
     println!("Default output config: {config:?}");
     let channels = config.channels() as usize;
 
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let mut sample_index = 0;
 
     println!("PCM spec: {:?}", reader.get_pcm_specs());
