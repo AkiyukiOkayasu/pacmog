@@ -129,16 +129,37 @@ pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
     if audio_format == AudioFormat::ImaAdpcmLe {
         //IMA-ADPCMの拡張属性の取得
         let num_block_align = block_size;
-        assert!(block_size % 4 == 0);
-        assert!(input.len() >= 4);
-        let (input, cb_size) = le_u16(input)?; //2
-        assert_eq!(cb_size, 2);
+
+        if block_size % 4 != 0 {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::LengthValue,
+            )));
+        }
+        if input.len() < 4 {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Eof,
+            )));
+        }
+        let (input, cb_size) = le_u16(input)?;
+        if cb_size != 2 {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Verify,
+            )));
+        }
+
         //wSamplesPerBlock = (((nBlockAlign - (4*nChannels))) * 8) / (wBitPerSample * nChannels) + 1
         let (input, num_samples_per_block) = le_u16(input)?; //2041
-        assert_eq!(
-            num_samples_per_block,
-            ((block_size - (4 * num_channels)) * 8) / (bit_depth * num_channels) + 1
-        );
+        if num_samples_per_block
+            != ((block_size - (4 * num_channels)) * 8) / (bit_depth * num_channels) + 1
+        {
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Verify,
+            )));
+        }
 
         return Ok((
             input,

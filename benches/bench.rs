@@ -6,14 +6,14 @@ fn parse_wav(c: &mut Criterion) {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
     c.bench_function("Parse WAV 16bit", |b| {
         b.iter(|| {
-            let _reader = PcmReader::new(black_box(wav));
+            let _reader = PcmReader::new(black_box(wav)).unwrap();
         })
     });
 }
 
 fn read_sample(c: &mut Criterion) {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReader::new(wav);
+    let reader = PcmReader::new(wav).unwrap();
     let pcm_specs = reader.get_pcm_specs();
     c.bench_function("Read a sample 16bit", |b| {
         b.iter(|| {

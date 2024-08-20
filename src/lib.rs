@@ -10,7 +10,7 @@
 //! use pacmog::PcmReader;
 //!
 //! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-//! let reader = PcmReader::new(wav);
+//! let reader = PcmReader::new(wav).unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels as u32;
@@ -54,6 +54,8 @@ pub enum LinearPcmError {
     InvalidOutputBufferLength,
     #[error("Finished playing")]
     FinishPlaying,
+    #[error("RIFF or AIFF header size mismatch")]
+    HeaderSizeMismatch,
 }
 
 /// Audio format
@@ -111,17 +113,28 @@ impl<'a> PcmReader<'a> {
             },
         )(input)?;
 
-        for e in v {
-            assert_ne!(e.size, 0);
-            match e.id {
+        for chunk in v {
+            if chunk.size < 0 {
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    nom::error::ErrorKind::LengthValue,
+                )));
+            }
+
+            match chunk.id {
                 aiff::ChunkId::Common => {
-                    let (_, spec) = aiff::parse_comm(e.data)?;
+                    let (_, spec) = aiff::parse_comm(chunk.data)?;
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
-                    let (data, ssnd_block_info) = aiff::parse_ssnd(e.data)?;
-                    assert_eq!(ssnd_block_info.offset, 0); //offsetとblock_sizeはほとんどの場合で0固定。したがって0で指定されたファイルにのみ対応する。
-                    assert_eq!(ssnd_block_info.block_size, 0);
+                    let (data, ssnd_block_info) = aiff::parse_ssnd(chunk.data)?;
+                    // offset and block_size are typically 0. Therefore, this only supports files where they are set to 0.
+                    if ssnd_block_info.offset != 0 || ssnd_block_info.block_size != 0 {
+                        return Err(nom::Err::Error(nom::error::Error::new(
+                            input,
+                            nom::error::ErrorKind::Verify,
+                        )));
+                    }
                     self.data = data;
                 }
                 aiff::ChunkId::FormatVersion => {}
@@ -151,11 +164,17 @@ impl<'a> PcmReader<'a> {
             },
         )(input)?;
 
-        for e in v {
-            assert_ne!(e.size, 0);
-            match e.id {
+        for chunk in v {
+            if chunk.size < 0 {
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    nom::error::ErrorKind::LengthValue,
+                )));
+            }
+
+            match chunk.id {
                 wav::ChunkId::Fmt => {
-                    let (_, spec) = wav::parse_fmt(e.data)?;
+                    let (_, spec) = wav::parse_fmt(chunk.data)?;
                     self.specs.num_channels = spec.num_channels;
                     self.specs.sample_rate = spec.sample_rate;
                     self.specs.audio_format = spec.audio_format;
@@ -167,7 +186,7 @@ impl<'a> PcmReader<'a> {
                     }
                 }
                 wav::ChunkId::Data => {
-                    self.data = e.data;
+                    self.data = chunk.data;
                 }
                 wav::ChunkId::Fact => {}
                 wav::ChunkId::IDv3 => {}
@@ -196,32 +215,36 @@ impl<'a> PcmReader<'a> {
     }
 
     /// PCMReader is a struct that reads PCM data from a byte array.
-    /// It supports Linear PCM and IEEE Float.
     /// * 'input' - PCM data byte array
-    pub fn new(input: &'a [u8]) -> Self {
+    pub fn new(input: &'a [u8]) -> Result<Self, LinearPcmError> {
         let file_length = input.len();
-
         let mut reader: PcmReader = Default::default();
 
         //WAVE
         if let Ok((input, riff)) = wav::parse_riff_header(input) {
-            assert_eq!((file_length - 8) as u32, riff.size);
+            if (file_length - 8) != riff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
             if let Ok((_, _)) = reader.parse_wav(input) {
-                return reader;
+                return Ok(reader);
             }
         };
 
         //AIFF
         if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
             assert_eq!((file_length - 8) as u32, aiff.size);
+            if (file_length - 8) != aiff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
             if let Ok((_, _)) = reader.parse_aiff(input) {
-                return reader;
+                return Ok(reader);
             }
         };
 
         //WAVでもAIFFでもなかった場合
-        //TODO panicせずにエラーを返す
-        panic!();
+        Err(LinearPcmError::UnsupportedAudioFormat)
     }
 
     /// Returns basic information about the PCM file.
@@ -359,7 +382,9 @@ pub struct PcmPlayer<'a> {
 impl<'a> PcmPlayer<'a> {
     /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Self {
-        let reader = PcmReader::new(input);
+        //TODO error handling
+        let reader = PcmReader::new(input).unwrap();
+
         let mut player = PcmPlayer {
             reader,
             reading_data: &[],
