@@ -42,6 +42,7 @@ impl TryFrom<&[u8]> for ChunkId {
 #[derive(Debug, Default)]
 pub(super) struct Chunk<'a> {
     pub id: ChunkId,
+    #[allow(dead_code)]
     pub size: u32,
     pub data: &'a [u8],
 }

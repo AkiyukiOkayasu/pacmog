@@ -114,13 +114,6 @@ impl<'a> PcmReader<'a> {
         )(input)?;
 
         for chunk in v {
-            if chunk.size < 0 {
-                return Err(nom::Err::Error(nom::error::Error::new(
-                    input,
-                    nom::error::ErrorKind::LengthValue,
-                )));
-            }
-
             match chunk.id {
                 aiff::ChunkId::Common => {
                     let (_, spec) = aiff::parse_comm(chunk.data)?;
@@ -165,13 +158,6 @@ impl<'a> PcmReader<'a> {
         )(input)?;
 
         for chunk in v {
-            if chunk.size < 0 {
-                return Err(nom::Err::Error(nom::error::Error::new(
-                    input,
-                    nom::error::ErrorKind::LengthValue,
-                )));
-            }
-
             match chunk.id {
                 wav::ChunkId::Fmt => {
                     let (_, spec) = wav::parse_fmt(chunk.data)?;
