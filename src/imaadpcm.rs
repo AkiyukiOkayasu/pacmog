@@ -60,6 +60,8 @@ pub enum ImaAdpcmError {
     InsufficientOutputBufferChannels,
     #[error("Finish playing.")]
     FinishPlaying,
+    #[error("Block length does not match block align")]
+    BlockLengthMismatch,
 }
 
 /// IMA-ADPCMのHeader Wordをパースする
@@ -162,7 +164,8 @@ pub struct ImaAdpcmPlayer<'a> {
 impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
-        let reader = PcmReader::new(input);
+        //TODO unwrapではなくきちんとエラーハンドリングする
+        let reader = PcmReader::new(input).unwrap();
 
         ImaAdpcmPlayer {
             reader,
@@ -188,7 +191,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
         //IMA-ADPCMのBlock切り替わりかどうか判定
         if self.reading_block.is_empty() && self.nibble_queue[0].is_empty() {
-            self.update_block();
+            self.update_block()?;
             out[..(num_channels as usize)]
                 .copy_from_slice(&self.last_predicted_sample[..(num_channels as usize)]);
             self.frame_index += 1; //Blockの最初のサンプルはHeaderに記録されている
@@ -229,13 +232,15 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 
     /// IMA-ADPCMのブロック更新.    
-    fn update_block(&mut self) {
+    fn update_block(&mut self) -> Result<(), ImaAdpcmError> {
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;
         let offset = (self.frame_index / samples_per_block) * block_align;
         self.reading_block = &self.reader.data[offset as usize..(offset + block_align) as usize]; //新しいBlockをreading_blockへ更新
 
-        assert_eq!(self.reading_block.len(), block_align as usize);
+        if self.reading_block.len() != block_align as usize {
+            return Err(ImaAdpcmError::BlockLengthMismatch);
+        }
 
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
@@ -244,6 +249,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             self.step_size_table_index[ch] = block_header.b_step_table_index;
             self.reading_block = block;
         }
+        Ok(())
     }
 
     /// Move the playback position back to the beginning.

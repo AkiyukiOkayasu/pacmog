@@ -15,7 +15,7 @@ fn main() {
     println!("Default output config: {config:?}");
     let channels = config.channels() as usize;
 
-    let reader = PcmReader::new(wav);
+    let reader = PcmReader::new(wav).unwrap();
     let mut sample_index = 0;
 
     println!("PCM spec: {:?}", reader.get_pcm_specs());
