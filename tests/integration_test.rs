@@ -1,7 +1,7 @@
 use approx::assert_relative_eq;
 use pacmog::{
     imaadpcm::{ImaAdpcmPlayer, I1F15},
-    AudioFormat, PcmPlayer, PcmReader,
+    AudioFormat, PcmPlayer, PcmReaderBuilder,
 };
 
 const SINEWAVE: [f32; 3000] = [
@@ -3028,7 +3028,7 @@ fn fixed_test() {
 #[test]
 fn wav_linearpcm_specs() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.bit_depth, 16);
     assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
@@ -3040,7 +3040,7 @@ fn wav_linearpcm_specs() {
 #[test]
 fn aiff_linearpcm_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let reader = PcmReader::new(data).unwrap();
+    let reader = PcmReaderBuilder::new(data).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.bit_depth, 16);
     assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe); //Big endian
@@ -3052,7 +3052,7 @@ fn aiff_linearpcm_specs() {
 #[test]
 fn wav_float32_specs() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.bit_depth, 32);
     assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); //Little endian
@@ -3064,7 +3064,7 @@ fn wav_float32_specs() {
 #[test]
 fn aiff_float32_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::new(data).unwrap();
+    let reader = PcmReaderBuilder::new(data).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.bit_depth, 32);
     assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe); //Big endian
@@ -3076,7 +3076,7 @@ fn aiff_float32_specs() {
 #[test]
 fn wav_16bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3097,7 +3097,7 @@ fn wav_16bit() {
 #[test]
 fn wav_24bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3114,7 +3114,7 @@ fn wav_24bit() {
 #[test]
 fn wav_32bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3186,7 +3186,7 @@ fn wav_player_32bit() {
 #[test]
 fn wav_32bit_float() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3203,7 +3203,7 @@ fn wav_32bit_float() {
 #[test]
 fn wav_64bit_float() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3220,7 +3220,7 @@ fn wav_64bit_float() {
 #[test]
 fn aiff_16bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let reader = PcmReaderBuilder::new(aiff).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3241,7 +3241,7 @@ fn aiff_16bit() {
 #[test]
 fn aiff_24bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let reader = PcmReaderBuilder::new(aiff).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3258,7 +3258,7 @@ fn aiff_24bit() {
 #[test]
 fn aiff_32bit() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let reader = PcmReaderBuilder::new(aiff).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3275,7 +3275,7 @@ fn aiff_32bit() {
 #[test]
 fn aiff_32bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let reader = PcmReaderBuilder::new(aiff).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3292,7 +3292,7 @@ fn aiff_32bit_float() {
 #[test]
 fn aiff_64bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let reader = PcmReaderBuilder::new(aiff).build().unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
