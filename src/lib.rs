@@ -7,10 +7,10 @@
 //!
 //! Read a sample WAV file.
 //! ```
-//! use pacmog::PcmReader;
+//! use pacmog::PcmReaderBuilder;
 //!
 //! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-//! let reader = PcmReader::new(wav).unwrap();
+//! let reader = PcmReaderBuilder::new(wav).build().unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels as u32;
