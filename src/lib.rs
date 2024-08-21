@@ -102,36 +102,16 @@ pub struct PcmReader<'a> {
     pub(crate) data: &'a [u8],
 }
 
-/// Builder struct for creating a PcmReader.
-pub struct PcmReaderBuilder<'a> {
-    input: &'a [u8],
-}
-
-impl<'a> PcmReaderBuilder<'a> {
-    /// Creates a new PcmReaderBuilder.
-    /// # Arguments
-    /// * `input` - Byte slice of the PCM file.
-    /// # Returns
-    /// A new instance of PcmReaderBuilder.
-    pub fn new(input: &'a [u8]) -> Self {
-        PcmReaderBuilder { input }
-    }
-
-    /// Builds the PcmReader.
-    ///
-    /// # Returns
-    /// * `Ok(PcmReader)` - On success, returns a PcmReader instance.
-    /// * `Err(LinearPcmError)` - On failure, returns a LinearPcmError.
-    pub fn build(self) -> Result<PcmReader<'a>, LinearPcmError> {
-        let file_length = self.input.len();
-
+impl<'a> PcmReader<'a> {
+    pub fn new(input: &'a [u8]) -> Result<Self, LinearPcmError> {
+        let file_length = input.len();
         let mut reader = PcmReader {
             data: &[],
             specs: PcmSpecs::default(),
         };
 
         // Parse WAVE format
-        if let Ok((input, riff)) = wav::parse_riff_header(self.input) {
+        if let Ok((input, riff)) = wav::parse_riff_header(input) {
             if (file_length - 8) != riff.size as usize {
                 return Err(LinearPcmError::HeaderSizeMismatch);
             }
@@ -142,7 +122,7 @@ impl<'a> PcmReaderBuilder<'a> {
         }
 
         // Parse AIFF format
-        if let Ok((input, aiff)) = aiff::parse_aiff_header(self.input) {
+        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
             if (file_length - 8) != aiff.size as usize {
                 return Err(LinearPcmError::HeaderSizeMismatch);
             }
@@ -154,9 +134,6 @@ impl<'a> PcmReaderBuilder<'a> {
 
         Err(LinearPcmError::UnsupportedAudioFormat)
     }
-}
-
-impl<'a> PcmReader<'a> {
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
             aiff::parse_chunk,
@@ -390,7 +367,7 @@ impl<'a> PcmPlayer<'a> {
     /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Self {
         //TODO error handling
-        let reader = PcmReaderBuilder::new(input).build().unwrap();
+        let reader = PcmReader::new(input).unwrap();
 
         let mut player = PcmPlayer {
             reader,

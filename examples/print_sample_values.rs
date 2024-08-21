@@ -1,10 +1,10 @@
-use pacmog::PcmReaderBuilder;
+use pacmog::PcmReader;
 use std::{fs, io::Write};
 
 fn main() {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_64FP.wav");
     println!("Wave length in bytes: {}", wav.len());
-    let reader = PcmReaderBuilder::new(wav).build().unwrap();
+    let reader = PcmReader::new(wav).unwrap();
     println!("PCM spec: {:?}", reader.get_pcm_specs());
 
     let mut file = fs::File::create("sinewave.txt").unwrap();

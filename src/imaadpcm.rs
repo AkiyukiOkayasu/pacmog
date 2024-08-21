@@ -16,7 +16,7 @@
 //! }
 //! ```
 
-use crate::{AudioFormat, PcmReader, PcmReaderBuilder, PcmSpecs};
+use crate::{AudioFormat, PcmReader, PcmSpecs};
 use arbitrary_int::u4;
 use heapless::spsc::Queue;
 use nom::bits::{bits, complete::take};
@@ -165,7 +165,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
     pub fn new(input: &'a [u8]) -> Self {
         //TODO unwrapではなくきちんとエラーハンドリングする
-        let reader = PcmReaderBuilder::new(input).build().unwrap();
+        let reader = PcmReader::new(input).unwrap();
 
         ImaAdpcmPlayer {
             reader,
