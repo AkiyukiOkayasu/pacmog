@@ -103,6 +103,8 @@ pub struct PcmReader<'a> {
 }
 
 impl<'a> PcmReader<'a> {
+    /// Create a new PcmReader instance.
+    /// * 'input' - PCM data byte array
     pub fn new(input: &'a [u8]) -> Result<Self, LinearPcmError> {
         let file_length = input.len();
         let mut reader = PcmReader {
