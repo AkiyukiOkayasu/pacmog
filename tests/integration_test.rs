@@ -3067,6 +3067,20 @@ fn wav_float32_specs() {
     assert_eq!(spec.num_samples, 240000);
 }
 
+/// https://archive.org/details/MLKDream
+#[test]
+fn mlk_dream() {
+    let wav = include_bytes!("./resources/MLKDream.wav");
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
+    let spec = reader.get_pcm_specs();
+    // Assertions
+    assert_eq!(spec.bit_depth, 16);
+    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe); // Little endian
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 22050);
+    assert_eq!(spec.num_samples, 21_772_800);
+}
+
 #[test]
 fn aiff_float32_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
