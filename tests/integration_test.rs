@@ -3,6 +3,9 @@ use pacmog::{
     imaadpcm::{ImaAdpcmPlayer, I1F15},
     AudioFormat, PcmPlayer, PcmReaderBuilder,
 };
+use reqwest::blocking::get;
+use std::io::{self, Read, Write};
+use tempfile::NamedTempFile;
 
 const SINEWAVE: [f32; 3000] = [
     0f32,
@@ -3050,15 +3053,32 @@ fn aiff_linearpcm_specs() {
 }
 
 #[test]
-fn wav_float32_specs() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-    let reader = PcmReaderBuilder::new(wav).build().unwrap();
+fn wav_float32_specs() -> io::Result<()> {
+    // Download the wave file using reqwest
+    let url = "https://github.com/AkiyukiOkayasu/TestToneSet/raw/main/Sine440Hz_1ch48000HzFP32.wav";
+    let response = get(url).expect("Failed to download file");
+    let content = response.bytes().expect("Failed to read response bytes");
+
+    // Create a temporary file
+    let mut temp_file = NamedTempFile::new()?;
+    temp_file.write_all(&content)?;
+
+    // Read the downloaded file into a byte array
+    let mut wav = Vec::new();
+    temp_file.reopen()?.read_to_end(&mut wav)?;
+
+    // Use PcmReaderBuilder to read the PCM specs
+    let reader = PcmReaderBuilder::new(&wav).build().unwrap();
     let spec = reader.get_pcm_specs();
+
+    // Assertions
     assert_eq!(spec.bit_depth, 32);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); //Little endian
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_samples, 240000);
+
+    Ok(())
 }
 
 #[test]
