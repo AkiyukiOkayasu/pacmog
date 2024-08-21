@@ -3025,6 +3025,132 @@ fn fixed_test() {
     assert_eq!(aaa.to_ne_bytes(), I1F15::from_num(0.05).to_ne_bytes());
 }
 
+/// Decode the given wave file using Symphonia and return the decoded samples.
+///
+/// # Arguments
+/// * `data` - The wave file data
+///
+/// # Returns
+/// * A tuple of the decoded samples, sample rate and number of channels
+///
+fn decode_with_symphonia(data: &'static [u8]) -> (Vec<f32>, u32, usize) {
+    use std::io::Cursor;
+    use symphonia::core::audio::SampleBuffer;
+    use symphonia::core::codecs::DecoderOptions;
+    use symphonia::core::errors::Error;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+    use symphonia::default::get_probe;
+
+    // Decode using Symphonia
+    let mss = MediaSourceStream::new(Box::new(Cursor::new(data)), Default::default());
+    let probed = get_probe()
+        .format(
+            &Default::default(),
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .expect("Failed to probe format");
+    let mut format = probed.format;
+
+    let track = format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
+        .expect("no supported track found");
+    let dec_opts: DecoderOptions = Default::default();
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &dec_opts)
+        .expect("unsupported codec");
+
+    let track_id = track.id;
+    let mut sample_buf = None;
+    let mut symphonia_decoded_samples = Vec::<f32>::new();
+    let mut sample_rate = None;
+    let mut num_channels = None;
+    loop {
+        let Ok(packet) = format.next_packet() else {
+            break;
+        };
+
+        // Consume any new metadata that has been read since the last packet.
+        while !format.metadata().is_latest() {
+            // Pop the old head of the metadata queue.
+            format.metadata().pop();
+
+            // Consume the new metadata at the head of the metadata queue.
+        }
+
+        // If the packet does not belong to the selected track, skip over it.
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        // Decode the packet into audio samples.
+        match decoder.decode(&packet) {
+            Ok(decoded) => {
+                // Consume the decoded audio samples (see below).
+                if sample_buf.is_none() {
+                    let spec = *decoded.spec();
+                    sample_rate = Some(spec.rate);
+                    num_channels = Some(spec.channels.count());
+                    let duration = decoded.capacity();
+                    sample_buf = Some(SampleBuffer::<f32>::new(duration as u64, spec));
+                }
+
+                if let Some(buf) = &mut sample_buf {
+                    buf.copy_interleaved_ref(decoded);
+                    for e in buf.samples().iter() {
+                        symphonia_decoded_samples.push(*e);
+                    }
+                }
+            }
+            Err(Error::IoError(_)) => {
+                // The packet failed to decode due to an IO error, skip the packet.
+                continue;
+            }
+            Err(Error::DecodeError(_)) => {
+                // The packet failed to decode due to invalid data, skip the packet.
+                continue;
+            }
+            Err(err) => {
+                // An unrecoverable error occurred, halt decoding.
+                panic!("{}", err);
+            }
+        }
+    }
+    (
+        symphonia_decoded_samples,
+        sample_rate.unwrap(),
+        num_channels.unwrap(),
+    )
+}
+
+#[test]
+fn compare_with_symphonia() {
+    // Include the wave file using include_bytes!
+    let data = include_bytes!("./resources/Tank_Low17.wav");
+
+    // Use PcmReaderBuilder to read the PCM specs
+    let reader = PcmReaderBuilder::new(data).build().unwrap();
+    let spec = reader.get_pcm_specs();
+    let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+    assert_eq!(spec.sample_rate, sample_rate);
+    assert_eq!(spec.num_channels as usize, num_channels);
+    let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+    assert_eq!(symphonia_buf.len(), num_total_samples);
+
+    for samp in 0..spec.num_samples as usize {
+        for ch in 0..num_channels {
+            let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+            assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+        }
+    }
+}
+
 #[test]
 fn wav_linearpcm_specs() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
@@ -3051,14 +3177,33 @@ fn aiff_linearpcm_specs() {
 
 #[test]
 fn wav_float32_specs() {
+    // Download the wave file using reqwest
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
+
+    // Use PcmReaderBuilder to read the PCM specs
     let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
+
+    // Assertions
     assert_eq!(spec.bit_depth, 32);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); //Little endian
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_samples, 240000);
+}
+
+/// https://archive.org/details/MLKDream
+#[test]
+fn mlk_dream() {
+    let wav = include_bytes!("./resources/MLKDream.wav");
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
+    let spec = reader.get_pcm_specs();
+    // Assertions
+    assert_eq!(spec.bit_depth, 16);
+    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe); // Little endian
+    assert_eq!(spec.num_channels, 1);
+    assert_eq!(spec.sample_rate, 22050);
+    assert_eq!(spec.num_samples, 21_772_800);
 }
 
 #[test]
@@ -3075,22 +3220,22 @@ fn aiff_float32_specs() {
 
 #[test]
 fn wav_16bit() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReaderBuilder::new(wav).build().unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
-    assert_eq!(spec.bit_depth, 16);
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
 
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(
-            sample,
-            SINEWAVE[i as usize],
-            epsilon = f32::EPSILON * 200f32
-        );
+    // Use PcmReaderBuilder to read the PCM specs
+    let reader = PcmReaderBuilder::new(data).build().unwrap();
+    let spec = reader.get_pcm_specs();
+    let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+    assert_eq!(spec.sample_rate, sample_rate);
+    assert_eq!(spec.num_channels as usize, num_channels);
+    let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+    assert_eq!(symphonia_buf.len(), num_total_samples);
+
+    for samp in 0..spec.num_samples as usize {
+        for ch in 0..num_channels {
+            let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+            assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+        }
     }
 }
 
@@ -3311,7 +3456,6 @@ fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
@@ -3332,7 +3476,6 @@ fn ima_adpcm_4bit_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
@@ -3369,7 +3512,6 @@ fn ima_adpcm_4bit_2ch() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 2);
@@ -3393,7 +3535,6 @@ fn ima_adpcm_4bit_2ch_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 2);
