@@ -4,8 +4,6 @@ use pacmog::{
     AudioFormat, PcmPlayer, PcmReaderBuilder,
 };
 use reqwest::blocking::get;
-use std::io::{self, Read, Write};
-use tempfile::NamedTempFile;
 
 const SINEWAVE: [f32; 3000] = [
     0f32,
@@ -3010,6 +3008,12 @@ const SINEWAVE: [f32; 3000] = [
     0.05130394f32,
 ];
 
+fn download_audio_file(url: &str) -> Result<Vec<u8>, reqwest::Error> {
+    let response = get(url)?;
+    let bytes = response.bytes()?;
+    Ok(bytes.to_vec())
+}
+
 #[test]
 fn fixed_test() {
     let hoge = I1F15::from_num(0.5);
@@ -3053,19 +3057,10 @@ fn aiff_linearpcm_specs() {
 }
 
 #[test]
-fn wav_float32_specs() -> io::Result<()> {
+fn wav_float32_specs() {
     // Download the wave file using reqwest
     let url = "https://github.com/AkiyukiOkayasu/TestToneSet/raw/main/Sine440Hz_1ch48000HzFP32.wav";
-    let response = get(url).expect("Failed to download file");
-    let content = response.bytes().expect("Failed to read response bytes");
-
-    // Create a temporary file
-    let mut temp_file = NamedTempFile::new()?;
-    temp_file.write_all(&content)?;
-
-    // Read the downloaded file into a byte array
-    let mut wav = Vec::new();
-    temp_file.reopen()?.read_to_end(&mut wav)?;
+    let wav = download_audio_file(url).unwrap();
 
     // Use PcmReaderBuilder to read the PCM specs
     let reader = PcmReaderBuilder::new(&wav).build().unwrap();
@@ -3077,8 +3072,6 @@ fn wav_float32_specs() -> io::Result<()> {
     assert_eq!(spec.num_channels, 1);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_samples, 240000);
-
-    Ok(())
 }
 
 #[test]
