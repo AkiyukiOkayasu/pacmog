@@ -7,10 +7,10 @@
 //!
 //! Read a sample WAV file.
 //! ```
-//! use pacmog::PcmReaderBuilder;
+//! use pacmog::PcmReader;
 //!
 //! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-//! let reader = PcmReaderBuilder::new(wav).build().unwrap();
+//! let reader = PcmReader::new(wav).unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels as u32;
@@ -131,6 +131,37 @@ impl<'a> PcmReader<'a> {
 
             if let Ok((_, _)) = reader.parse_aiff(input) {
                 return Ok(reader);
+            }
+        }
+
+        Err(LinearPcmError::UnsupportedAudioFormat)
+    }
+
+    /// Reload a new PCM byte array.
+    pub fn reload(&mut self, input: &'a [u8]) -> Result<(), LinearPcmError> {
+        let file_length = input.len();
+        self.data = &[];
+        self.specs = PcmSpecs::default();
+
+        // Parse WAVE format
+        if let Ok((input, riff)) = wav::parse_riff_header(input) {
+            if (file_length - 8) != riff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
+            if let Ok((_, _)) = self.parse_wav(input) {
+                return Ok(());
+            }
+        }
+
+        // Parse AIFF format
+        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
+            if (file_length - 8) != aiff.size as usize {
+                return Err(LinearPcmError::HeaderSizeMismatch);
+            }
+
+            if let Ok((_, _)) = self.parse_aiff(input) {
+                return Ok(());
             }
         }
 
