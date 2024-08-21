@@ -3008,12 +3008,6 @@ const SINEWAVE: [f32; 3000] = [
     0.05130394f32,
 ];
 
-fn download_audio_file(url: &str) -> Result<Vec<u8>, reqwest::Error> {
-    let response = get(url)?;
-    let bytes = response.bytes()?;
-    Ok(bytes.to_vec())
-}
-
 #[test]
 fn fixed_test() {
     let hoge = I1F15::from_num(0.5);
@@ -3059,11 +3053,10 @@ fn aiff_linearpcm_specs() {
 #[test]
 fn wav_float32_specs() {
     // Download the wave file using reqwest
-    let url = "https://github.com/AkiyukiOkayasu/TestToneSet/raw/main/Sine440Hz_1ch48000HzFP32.wav";
-    let wav = download_audio_file(url).unwrap();
+    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
 
     // Use PcmReaderBuilder to read the PCM specs
-    let reader = PcmReaderBuilder::new(&wav).build().unwrap();
+    let reader = PcmReaderBuilder::new(wav).build().unwrap();
     let spec = reader.get_pcm_specs();
 
     // Assertions
