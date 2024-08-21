@@ -134,6 +134,7 @@ impl<'a> PcmReader<'a> {
 
         Err(LinearPcmError::UnsupportedAudioFormat)
     }
+
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
         let (input, v) = fold_many1(
             aiff::parse_chunk,
