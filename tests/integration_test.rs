@@ -3,7 +3,6 @@ use pacmog::{
     imaadpcm::{ImaAdpcmPlayer, I1F15},
     AudioFormat, PcmPlayer, PcmReaderBuilder,
 };
-use reqwest::blocking::get;
 
 const SINEWAVE: [f32; 3000] = [
     0f32,
@@ -3331,7 +3330,6 @@ fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
@@ -3352,7 +3350,6 @@ fn ima_adpcm_4bit_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
@@ -3389,7 +3386,6 @@ fn ima_adpcm_4bit_2ch() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 2);
@@ -3413,7 +3409,6 @@ fn ima_adpcm_4bit_2ch_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut player = ImaAdpcmPlayer::new(data);
     let spec = player.reader.get_pcm_specs();
-    dbg!(&spec);
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 2);

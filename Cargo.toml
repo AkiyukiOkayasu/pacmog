@@ -24,6 +24,7 @@ reqwest = { version = "0.12.7", features = ["blocking"] }
 cpal = "0.15.3"
 approx = "0.5.1"
 criterion = "0.4.0"
+symphonia = { version = "0.5.0", features = ["aiff", "adpcm"] }
 
 [[bench]]
 name = "bench"
