@@ -3534,9 +3534,10 @@ fn aiff_64bit_float() {
 #[test]
 fn wav_player_32bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-    let mut player = PcmPlayer::new(wav);
+    let reader = PcmReader::new(wav).unwrap();
+    let mut player = PcmPlayer::new(reader);
     let spec = player.reader.get_pcm_specs();
-    player.set_position(0);
+    player.set_position(0).unwrap();
     player.set_loop_playing(false);
     let mut buffer: [f32; 2] = [0f32, 0f32];
     let b = buffer.as_mut_slice();
@@ -3549,14 +3550,14 @@ fn wav_player_32bit() {
     }
 
     // set_positionが正しいかをtest
-    player.set_position(0);
+    player.set_position(0).unwrap();
     for i in 0..10 {
         if player.get_next_frame(b).is_ok() {
             assert_relative_eq!(b[0], SINEWAVE[i as usize]);
         }
     }
 
-    player.set_position(0);
+    player.set_position(0).unwrap();
     //末尾まで再生
     for _ in 0..spec.num_samples {
         player.get_next_frame(b).unwrap();
@@ -3572,7 +3573,7 @@ fn wav_player_32bit() {
     }
 
     player.set_loop_playing(true);
-    player.set_position(0);
+    player.set_position(0).unwrap();
     // 末尾まで再生
     for _ in 0..spec.num_samples {
         player.get_next_frame(b).unwrap();
