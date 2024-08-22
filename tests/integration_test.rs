@@ -3007,24 +3007,6 @@ const SINEWAVE: [f32; 3000] = [
     0.05130394f32,
 ];
 
-#[test]
-fn fixed_test() {
-    let hoge = I1F15::from_num(0.5);
-    let fuga = I1F15::from_num(0.1);
-    let max = I1F15::from_bits(32767);
-    let min = I1F15::from_bits(-32768);
-    let zero = I1F15::from_bits(0);
-    assert_eq!(max, I1F15::MAX); //MAX≒1.0
-    assert_eq!(min, I1F15::MIN); //MIN=-1.0
-    assert_eq!(min, -1.0);
-    assert_eq!(zero, I1F15::ZERO);
-    assert_eq!(zero, 0);
-    assert_eq!(hoge, 0.5);
-    assert_eq!(fuga.to_ne_bytes(), I1F15::from_num(0.1).to_ne_bytes());
-    let aaa = hoge.checked_mul(fuga).unwrap();
-    assert_eq!(aaa.to_ne_bytes(), I1F15::from_num(0.05).to_ne_bytes());
-}
-
 /// Decode the given wave file using Symphonia and return the decoded samples.
 ///
 /// # Arguments
@@ -3130,125 +3112,400 @@ fn decode_with_symphonia(data: &'static [u8]) -> (Vec<f32>, u32, usize) {
 }
 
 #[test]
-fn compare_with_symphonia() {
-    // Include the wave file using include_bytes!
-    let data = include_bytes!("./resources/Tank_Low17.wav");
-
-    // Use PcmReader to read the PCM specs
-    let reader = PcmReader::new(data).unwrap();
-    let spec = reader.get_pcm_specs();
-    let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
-    assert_eq!(spec.sample_rate, sample_rate);
-    assert_eq!(spec.num_channels as usize, num_channels);
-    let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
-    assert_eq!(symphonia_buf.len(), num_total_samples);
-
-    for samp in 0..spec.num_samples as usize {
-        for ch in 0..num_channels {
-            let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
-            assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
-        }
-    }
-}
-
-#[test]
-fn wav_linearpcm_specs() {
+fn wav_specs() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let reader = PcmReader::new(wav).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.bit_depth, 16);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_samples, 240000);
+    let mut reader = PcmReader::new(wav).unwrap();
+    // 1ch 48kHz 16bit
+    {
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 16);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 24bit
+    {
+        let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
+        reader.reload(wav).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 24);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 32bit
+    {
+        let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
+        reader.reload(wav).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 32);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 32bit float
+    {
+        let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
+        reader.reload(wav).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 32);
+        assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 64bit float
+    {
+        let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
+        reader.reload(wav).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 64);
+        assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 22.05kHz 16bit
+    {
+        let wav = include_bytes!("./resources/MLKDream.wav"); // https://archive.org/details/MLKDream
+        reader.reload(wav).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 16);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe); // Little endian
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 22050);
+        assert_eq!(spec.num_samples, 21_772_800);
+    }
 }
 
 #[test]
-fn aiff_linearpcm_specs() {
+fn aiff_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let reader = PcmReader::new(data).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.bit_depth, 16);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe); //Big endian
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_samples, 240000);
+    let mut reader = PcmReader::new(data).unwrap();
+    // 1ch 48kHz 16bit
+    {
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 16);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe); //Big endian
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 24bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
+        reader.reload(data).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 24);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 32bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
+        reader.reload(data).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 32);
+        assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 32bit float
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
+        reader.reload(data).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 32);
+        assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
+
+    // 1ch 48kHz 64bit float
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
+        reader.reload(data).unwrap();
+        let spec = reader.get_pcm_specs();
+        assert_eq!(spec.bit_depth, 64);
+        assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
+        assert_eq!(spec.num_channels, 1);
+        assert_eq!(spec.sample_rate, 48000);
+        assert_eq!(spec.num_samples, 240000);
+    }
 }
 
 #[test]
-fn wav_float32_specs() {
-    // Download the wave file using reqwest
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-
-    // Use PcmReader to read the PCM specs
-    let reader = PcmReader::new(wav).unwrap();
-    let spec = reader.get_pcm_specs();
-
-    // Assertions
-    assert_eq!(spec.bit_depth, 32);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_samples, 240000);
-}
-
-/// https://archive.org/details/MLKDream
-#[test]
-fn mlk_dream() {
-    let wav = include_bytes!("./resources/MLKDream.wav");
-    let reader = PcmReader::new(wav).unwrap();
-    let spec = reader.get_pcm_specs();
-    // Assertions
-    assert_eq!(spec.bit_depth, 16);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe); // Little endian
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.sample_rate, 22050);
-    assert_eq!(spec.num_samples, 21_772_800);
-}
-
-#[test]
-fn aiff_float32_specs() {
-    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::new(data).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.bit_depth, 32);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe); //Big endian
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_samples, 240000);
-}
-
-#[test]
-fn wav_16bit() {
+fn wav_compare_with_symphonia() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
+    let mut reader = PcmReader::new(data).unwrap();
 
-    // Use PcmReader to read the PCM specs
-    let reader = PcmReader::new(data).unwrap();
-    let spec = reader.get_pcm_specs();
-    let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
-    assert_eq!(spec.sample_rate, sample_rate);
-    assert_eq!(spec.num_channels as usize, num_channels);
-    let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
-    assert_eq!(symphonia_buf.len(), num_total_samples);
+    // 1ch 48kHz 16bit
+    {
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
 
-    for samp in 0..spec.num_samples as usize {
-        for ch in 0..num_channels {
-            let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
-            assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 24bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 32bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 32bit float
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 64bit float
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    {
+        let data = include_bytes!("./resources/MLKDream.wav"); // https://archive.org/details/MLKDream
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    {
+        let data = include_bytes!("./resources/Tank_Low17.wav");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
         }
     }
 }
 
 #[test]
-fn wav_24bit() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
-    let reader = PcmReader::new(wav).unwrap();
+fn aiff_compare_with_symphonia() {
+    let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
+    let mut reader = PcmReader::new(data).unwrap();
+
+    // 1ch 48kHz 16bit
+    {
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 24bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // 1ch 48kHz 32bit
+    {
+        let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
+        reader.reload(data).unwrap();
+
+        let spec = reader.get_pcm_specs();
+        let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+        assert_eq!(spec.sample_rate, sample_rate);
+        assert_eq!(spec.num_channels as usize, num_channels);
+        let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+        assert_eq!(symphonia_buf.len(), num_total_samples);
+
+        for samp in 0..spec.num_samples as usize {
+            for ch in 0..num_channels {
+                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+            }
+        }
+    }
+
+    // TODO symphonia does not support 32bit float AIFF
+
+    // // 1ch 48kHz 32bit float
+    // {
+    //     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
+    //     reader.reload(data).unwrap();
+
+    //     let spec = reader.get_pcm_specs();
+    //     let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+    //     assert_eq!(spec.sample_rate, sample_rate);
+    //     assert_eq!(spec.num_channels as usize, num_channels);
+    //     let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+    //     assert_eq!(symphonia_buf.len(), num_total_samples);
+
+    //     for samp in 0..spec.num_samples as usize {
+    //         for ch in 0..num_channels {
+    //             let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+    //             assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+    //         }
+    //     }
+    // }
+
+    // // 1ch 48kHz 64bit float
+    // {
+    //     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
+    //     reader.reload(data).unwrap();
+
+    //     let spec = reader.get_pcm_specs();
+    //     let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
+    //     assert_eq!(spec.sample_rate, sample_rate);
+    //     assert_eq!(spec.num_channels as usize, num_channels);
+    //     let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
+    //     assert_eq!(symphonia_buf.len(), num_total_samples);
+
+    //     for samp in 0..spec.num_samples as usize {
+    //         for ch in 0..num_channels {
+    //             let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+    //             assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
+    //         }
+    //     }
+    // }
+}
+
+// TODO SymphoniaがAIFF 32bit floatをサポートしたら比較テストに置き換える
+#[test]
+fn aiff_32bit_float() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
+    let reader = PcmReader::new(aiff).unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
-    assert_eq!(spec.bit_depth, 24);
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
+    assert_eq!(spec.bit_depth, 32);
 
     for i in 0..SINEWAVE.len() as u32 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -3256,16 +3513,17 @@ fn wav_24bit() {
     }
 }
 
+// TODO SymphoniaがAIFF 64bit floatをサポートしたら比較テストに置き換える
 #[test]
-fn wav_32bit() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-    let reader = PcmReader::new(wav).unwrap();
+fn aiff_64bit_float() {
+    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
+    let reader = PcmReader::new(aiff).unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
     assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
-    assert_eq!(spec.bit_depth, 32);
+    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
+    assert_eq!(spec.bit_depth, 64);
 
     for i in 0..SINEWAVE.len() as u32 {
         let sample = reader.read_sample(0, i).unwrap();
@@ -3325,129 +3583,6 @@ fn wav_player_32bit() {
         if player.get_next_frame(b).is_ok() {
             assert_relative_eq!(b[0], SINEWAVE[i as usize]);
         }
-    }
-}
-
-#[test]
-fn wav_32bit_float() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-    let reader = PcmReader::new(wav).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe);
-    assert_eq!(spec.bit_depth, 32);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
-    }
-}
-
-#[test]
-fn wav_64bit_float() {
-    let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
-    let reader = PcmReader::new(wav).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe);
-    assert_eq!(spec.bit_depth, 64);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
-    }
-}
-
-#[test]
-fn aiff_16bit() {
-    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let reader = PcmReader::new(aiff).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
-    assert_eq!(spec.bit_depth, 16);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(
-            sample,
-            SINEWAVE[i as usize],
-            epsilon = f32::EPSILON * 200f32
-        );
-    }
-}
-
-#[test]
-fn aiff_24bit() {
-    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
-    let reader = PcmReader::new(aiff).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
-    assert_eq!(spec.bit_depth, 24);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
-    }
-}
-
-#[test]
-fn aiff_32bit() {
-    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
-    let reader = PcmReader::new(aiff).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
-    assert_eq!(spec.bit_depth, 32);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
-    }
-}
-
-#[test]
-fn aiff_32bit_float() {
-    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
-    assert_eq!(spec.bit_depth, 32);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
-    }
-}
-
-#[test]
-fn aiff_64bit_float() {
-    let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
-    let spec = reader.get_pcm_specs();
-    assert_eq!(spec.num_samples, 240000);
-    assert_eq!(spec.sample_rate, 48000);
-    assert_eq!(spec.num_channels, 1);
-    assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
-    assert_eq!(spec.bit_depth, 64);
-
-    for i in 0..SINEWAVE.len() as u32 {
-        let sample = reader.read_sample(0, i).unwrap();
-        assert_relative_eq!(sample, SINEWAVE[i as usize]);
     }
 }
 
