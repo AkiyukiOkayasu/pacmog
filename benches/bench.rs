@@ -18,7 +18,7 @@ fn read_sample(c: &mut Criterion) {
     c.bench_function("Read a sample 16bit", |b| {
         b.iter(|| {
             for sample in 0..48000 {
-                for channel in 0..pcm_specs.num_channels as u32 {
+                for channel in 0..pcm_specs.num_channels {
                     let _s = reader.read_sample(channel, sample).unwrap();
                 }
             }
