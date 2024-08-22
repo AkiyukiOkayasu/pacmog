@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
-use pacmog::PcmReader;
+use pacmog::{PcmPlayer, PcmReader};
 
 fn parse_wav(c: &mut Criterion) {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
@@ -18,9 +18,26 @@ fn read_sample(c: &mut Criterion) {
     c.bench_function("Read a sample 16bit", |b| {
         b.iter(|| {
             for sample in 0..48000 {
-                for channel in 0..pcm_specs.num_channels as u32 {
+                for channel in 0..pcm_specs.num_channels {
                     let _s = reader.read_sample(channel, sample).unwrap();
                 }
+            }
+        })
+    });
+}
+
+fn player(c: &mut Criterion) {
+    let data = include_bytes!("../tests/resources/MLKDream.wav");
+    let reader = PcmReader::new(data).unwrap();
+    let mut player = PcmPlayer::new(reader);
+    let mut buffer: [f32; 2] = [0.0, 0.0];
+    let buf = buffer.as_mut_slice();
+
+    c.bench_function("PcmPlayer", |b| {
+        b.iter(|| {
+            player.set_position(0).unwrap();
+            for _ in 0..1_000_000 {
+                player.get_next_frame(buf).unwrap();
             }
         })
     });
@@ -44,5 +61,11 @@ fn parse_decode_ima_adpcm(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, parse_wav, read_sample, parse_decode_ima_adpcm);
+criterion_group!(
+    benches,
+    parse_wav,
+    read_sample,
+    parse_decode_ima_adpcm,
+    player
+);
 criterion_main!(benches);

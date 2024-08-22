@@ -3265,7 +3265,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3285,7 +3285,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3305,7 +3305,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3325,7 +3325,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3345,7 +3345,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3364,7 +3364,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3383,7 +3383,7 @@ fn wav_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3406,7 +3406,7 @@ fn aiff_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3426,7 +3426,7 @@ fn aiff_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }
@@ -3446,7 +3446,7 @@ fn aiff_compare_with_symphonia() {
 
         for samp in 0..spec.num_samples as usize {
             for ch in 0..num_channels {
-                let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+                let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
                 assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
             }
         }

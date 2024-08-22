@@ -13,7 +13,7 @@
 //! let reader = PcmReader::new(wav).unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
-//! let num_channels = specs.num_channels as u32;
+//! let num_channels = specs.num_channels;
 //!
 //! println!("PCM info: {:?}", specs);
 //!
@@ -269,8 +269,9 @@ impl<'a> PcmReader<'a> {
 
     /// Returns the value of a sample at an arbitrary position.  
     /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.  
-    pub fn read_sample(&self, channel: u32, sample: u32) -> Result<f32, PcmReaderError> {
-        if channel >= self.specs.num_channels as u32 {
+    pub fn read_sample(&self, channel: u16, sample: u32) -> Result<f32, PcmReaderError> {
+        let num_channels = self.specs.num_channels;
+        if channel >= num_channels {
             return Err(PcmReaderError::InvalidChannel);
         }
 
@@ -278,9 +279,9 @@ impl<'a> PcmReader<'a> {
             return Err(PcmReaderError::InvalidSample);
         }
 
-        let byte_depth = self.specs.bit_depth as u32 / 8u32;
-        let byte_offset = ((byte_depth * sample * self.specs.num_channels as u32)
-            + (byte_depth * channel)) as usize;
+        let byte_depth = self.specs.bit_depth / 8u16;
+        let byte_offset = ((byte_depth as u32 * sample * num_channels as u32)
+            + (byte_depth * channel) as u32) as usize;
         let data = &self.data[byte_offset..];
         decode_sample(&self.specs, data)
     }
@@ -447,7 +448,7 @@ impl<'a> PcmPlayer<'a> {
             }
         }
 
-        let num_chennels = self.reader.specs.num_channels as u32;
+        let num_chennels = self.reader.specs.num_channels;
         for ch in 0..num_chennels {
             let Ok(sample) = self.reader.read_sample(ch, self.playback_position) else {
                 return Err(PcmPlayerError::InvalidPosition);
