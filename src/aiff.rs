@@ -65,34 +65,6 @@ impl TryFrom<&[u8]> for ChunkId {
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum CompressionTypeId {
-    None,
-    Sowt,
-    FL32,
-    FL64,
-}
-
-impl TryFrom<&[u8]> for CompressionTypeId {
-    type Error = ();
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        if v.len() != 4 {
-            return Err(());
-        }
-
-        match v {
-            b"NONE" => Ok(CompressionTypeId::None),
-            b"sowt" => Ok(CompressionTypeId::Sowt),
-            b"fl32" => Ok(CompressionTypeId::FL32),
-            b"FL32" => Ok(CompressionTypeId::FL32),
-            b"fl64" => Ok(CompressionTypeId::FL64),
-            b"FL64" => Ok(CompressionTypeId::FL64),
-            _ => Err(()),
-        }
-    }
-}
-
 #[derive(Debug, Default)]
 pub(super) struct Chunk<'a> {
     pub id: ChunkId,
@@ -144,19 +116,24 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
     let num_channels = num_channels as u16;
     let (input, num_sample_frames) = be_u32(input)?;
     let (input, bit_depth) = be_i16(input)?;
-    let bit_depth = bit_depth as u16;
+    let mut bit_depth = bit_depth as u16;
     let (input, sample_rate) = take(10usize)(input)?;
     let sample_rate = extended2double(sample_rate).map_err(nom::Err::from)? as u32;
 
     if input.len() >= 4 {
         //AIFF-C parameters
         let (_input, compression_type_id) = take(4usize)(input)?;
-        let compression_type_id: CompressionTypeId = compression_type_id.try_into().unwrap();
-        audio_format = match compression_type_id {
-            CompressionTypeId::None => AudioFormat::LinearPcmBe,
-            CompressionTypeId::Sowt => AudioFormat::LinearPcmLe,
-            CompressionTypeId::FL32 => AudioFormat::IeeeFloatBe,
-            CompressionTypeId::FL64 => AudioFormat::IeeeFloatBe,
+        let Ok((f, b)) = aifc_compression_type(compression_type_id) else {
+            // Unknown compression type
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Fail,
+            )));
+        };
+        audio_format = f;
+        if let Some(b) = b {
+            //bit-depthが指定されている場合は上書き
+            bit_depth = b;
         }
     }
 
@@ -171,6 +148,25 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
             ..Default::default()
         },
     ))
+}
+
+// AIFF-CのCOMMONチャンクにのみ存在するcompressionTypeからEndian, bit-depthを決定する
+fn aifc_compression_type(compression_type_id: &[u8]) -> Result<(AudioFormat, Option<u16>), ()> {
+    let t = match compression_type_id {
+        b"NONE" => (AudioFormat::LinearPcmBe, None),
+        b"twos" => (AudioFormat::LinearPcmBe, Some(16)),
+        b"sowt" => (AudioFormat::LinearPcmLe, Some(16)),
+        b"fl32" => (AudioFormat::IeeeFloatBe, Some(32)),
+        b"FL32" => (AudioFormat::IeeeFloatBe, Some(32)),
+        b"fl64" => (AudioFormat::IeeeFloatBe, Some(64)),
+        b"FL64" => (AudioFormat::IeeeFloatBe, Some(64)),
+        b"in24" => (AudioFormat::LinearPcmBe, Some(24)),
+        b"in32" => (AudioFormat::LinearPcmBe, Some(32)),
+        b"42ni" => (AudioFormat::LinearPcmLe, Some(24)),
+        b"23ni" => (AudioFormat::LinearPcmLe, Some(32)),
+        _ => return Err(()), //Unknown compression type
+    };
+    Ok(t)
 }
 
 // SSNDチャンクのパース
@@ -219,8 +215,6 @@ fn extended2double(buffer: &[u8]) -> Result<f64, AiffError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::aiff::CompressionTypeId;
-
     use super::{extended2double, ChunkId};
     use approx::assert_relative_eq;
 
@@ -290,41 +284,6 @@ mod tests {
 
         let b = b"FOO";
         let e: Result<ChunkId, ()> = b.as_slice().try_into();
-        assert_eq!(e, Err(()));
-    }
-
-    #[test]
-    fn compression_type_id_test() {
-        let b = b"sowt";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::Sowt);
-
-        let b = b"NONE";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::None);
-
-        let b = b"fl32";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::FL32);
-
-        let b = b"FL32";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::FL32);
-
-        let b = b"fl64";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::FL64);
-
-        let b = b"FL64";
-        let c: CompressionTypeId = b.as_slice().try_into().unwrap();
-        assert_eq!(c, CompressionTypeId::FL64);
-
-        let b = b"HOGE";
-        let e: Result<CompressionTypeId, ()> = b.as_slice().try_into();
-        assert_eq!(e, Err(()));
-
-        let b = b"FOO";
-        let e: Result<CompressionTypeId, ()> = b.as_slice().try_into();
         assert_eq!(e, Err(()));
     }
 }
