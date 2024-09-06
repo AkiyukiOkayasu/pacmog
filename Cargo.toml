@@ -12,19 +12,22 @@ edition = "2021"
 rust-version = "1.81.0"
 exclude = ["tests/resources/*"]
 
+[patch.crates-io]
+thiserror = { git = "https://github.com/quartiq/thiserror.git", branch = "no-std" }
+
 [dependencies]
 arbitrary-int = { version = "1.2.7", default-features = false }
 fixed = "1.28.0"
 heapless = "0.8.0"
 nom = { version = "7.1.3", default-features = false }
-thiserror = { version = "1.0", git = "https://github.com/quartiq/thiserror.git", default-features = false, branch = "no-std" }
+thiserror = { version = "1.0", default-features = false }
 
 [dev-dependencies]
 reqwest = { version = "0.12.7", features = ["blocking"] }
 cpal = "0.15.3"
 approx = "0.5.1"
 criterion = "0.4.0"
-symphonia = { version = "0.5.0", features = ["aiff", "adpcm"] }
+symphonia = { version = "0.5.4", features = ["aiff", "adpcm"] }
 
 [[bench]]
 name = "bench"
