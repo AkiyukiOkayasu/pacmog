@@ -1,6 +1,6 @@
 [package]
 name = "pacmog"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Akiyuki Okayasu <akiyuki.okayasu@gmail.com>"]
 description = "PCM decording library"
 categories = ["multimedia::audio", "no-std", "embedded", "multimedia::encoding"]
@@ -24,7 +24,7 @@ reqwest = { version = "0.12.7", features = ["blocking"] }
 cpal = "0.15.3"
 approx = "0.5.1"
 criterion = "0.4.0"
-symphonia = { version = "0.5.0", features = ["aiff", "adpcm"] }
+symphonia = { version = "0.5.4", features = ["aiff", "adpcm"] }
 
 [[bench]]
 name = "bench"
