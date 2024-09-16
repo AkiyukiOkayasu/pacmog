@@ -20,7 +20,7 @@ arbitrary-int = { version = "1.2.7", default-features = false }
 fixed = "1.28.0"
 heapless = "0.8.0"
 nom = { version = "7.1.3", default-features = false }
-thiserror = { version = "1.0", default-features = false }
+thiserror = { version = "1.0.63", default-features = false }
 
 [dev-dependencies]
 reqwest = { version = "0.12.7", features = ["blocking"] }
