@@ -11,9 +11,9 @@ pacmog works with no_std by default.
 
 | Format          | Status |
 | :---            | :---: |
-| WAV 16bit       | ✅ |
-| WAV 24bit       | ✅ |
-| WAV 32bit       | ✅ |
+| WAV 16bit | ✅ |
+| WAV 24bit | ✅ |
+| WAV 32bit | ✅ |
 | WAV 32bit float | ✅ |
 | WAV 64bit float | ✅ |
 | IMA ADPCM | ✅ |
