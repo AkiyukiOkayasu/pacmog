@@ -12,7 +12,7 @@ enum AiffError {
 
 /// AiffErrorをnom::Errに変換する
 /// 変換時に情報が失われてしまう。とりあえずnom::error::ErrorKind::Failとしたが、IResultを使わずに実装できるか検討したい
-impl<'a> From<AiffError> for nom::Err<nom::error::Error<&'a [u8]>> {
+impl From<AiffError> for nom::Err<nom::error::Error<&[u8]>> {
     fn from(_err: AiffError) -> Self {
         nom::Err::Error(nom::error::Error::new(&[], nom::error::ErrorKind::Fail))
     }
