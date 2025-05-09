@@ -210,17 +210,15 @@ impl<'a> PcmReader<'a> {
     }
 
     fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        let (input, v) = fold_many1(
-            wav::parse_chunk,
-            Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new,
-            |mut chunk_array: Vec<wav::Chunk, MAX_NUM_CHUNKS>, item| {
-                chunk_array.push(item).unwrap();
-                chunk_array
-            },
-        )
-        .parse(input)?;
+        let mut chunk_array = Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new();
+        let mut remaining_input = input;
 
-        for chunk in v {
+        while let Ok((input, chunk)) = wav::parse_chunk(remaining_input) {
+            chunk_array.push(chunk).unwrap();
+            remaining_input = input;
+        }
+
+        for chunk in chunk_array {
             match chunk.id {
                 wav::ChunkId::Fmt => {
                     let (_, spec) = wav::parse_fmt(chunk.data)?;
