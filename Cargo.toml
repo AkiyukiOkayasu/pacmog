@@ -16,7 +16,7 @@ exclude = ["tests/resources/*"]
 arbitrary-int = { version = "1.3.0", default-features = false }
 fixed = "1.28.0"
 heapless = "0.8.0"
-nom = { version = "7.1.3", default-features = false }
+nom = { version = "8.0.0", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 
 [dev-dependencies]

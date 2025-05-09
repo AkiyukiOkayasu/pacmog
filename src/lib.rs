@@ -30,8 +30,8 @@ use heapless::Vec;
 use nom::number::complete::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
-use nom::Finish;
 use nom::{multi::fold_many1, IResult};
+use nom::{Finish, Parser};
 
 mod aiff;
 pub mod imaadpcm;
@@ -172,7 +172,8 @@ impl<'a> PcmReader<'a> {
                 chunk_array.push(item).unwrap();
                 chunk_array
             },
-        )(input)?;
+        )
+        .parse(input)?;
 
         for chunk in v {
             match chunk.id {
@@ -216,7 +217,8 @@ impl<'a> PcmReader<'a> {
                 chunk_array.push(item).unwrap();
                 chunk_array
             },
-        )(input)?;
+        )
+        .parse(input)?;
 
         for chunk in v {
             match chunk.id {

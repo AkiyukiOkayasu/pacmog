@@ -79,9 +79,9 @@ pub(super) struct RiffHeader {
 
 /// ファイルがRIFFから始まり、識別子がWAVEであることのチェック
 pub(super) fn parse_riff_header(input: &[u8]) -> IResult<&[u8], RiffHeader> {
-    let (input, _) = tag(b"RIFF")(input)?;
+    let (input, _) = tag(&b"RIFF"[..])(input)?;
     let (input, size) = le_u32(input)?;
-    let (input, _) = tag(b"WAVE")(input)?;
+    let (input, _) = tag(&b"WAVE"[..])(input)?;
     Ok((input, RiffHeader { size }))
 }
 

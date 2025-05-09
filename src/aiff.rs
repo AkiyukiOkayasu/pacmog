@@ -2,7 +2,7 @@ use crate::{AudioFormat, PcmSpecs};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take};
 use nom::number::complete::{be_i16, be_i32, be_u32};
-use nom::IResult;
+use nom::{IResult, Parser};
 
 #[derive(thiserror::Error, Debug)]
 enum AiffError {
@@ -92,9 +92,9 @@ pub(super) struct SsndBlockInfo {
 
 /// ファイルがFORMから始まり、識別子がAIFFもしくはAIFF-Cであることのチェック
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
-    let (input, _) = tag(b"FORM")(input)?;
+    let (input, _) = tag(&b"FORM"[..])(input)?;
     let (input, size) = be_u32(input)?;
-    let (input, _id) = alt((tag(b"AIFF"), tag(b"AIFC")))(input)?;
+    let (input, _id) = alt((tag(&b"AIFF"[..]), tag(&b"AIFC"[..]))).parse(input)?;
     Ok((input, AiffHeader { size }))
 }
 
