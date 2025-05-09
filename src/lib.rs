@@ -165,6 +165,7 @@ impl<'a> PcmReader<'a> {
     }
 
     fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
+        // TODO nom v8にアップデートしてからfold_many1()が大幅に速度低下した。そのためparse_wav()のようにwhile loopに置き換える必要があるかもしれない。
         let (input, v) = fold_many1(
             aiff::parse_chunk,
             Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new,
