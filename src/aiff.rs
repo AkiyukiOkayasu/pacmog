@@ -92,9 +92,9 @@ pub(super) struct SsndBlockInfo {
 
 /// ファイルがFORMから始まり、識別子がAIFFもしくはAIFF-Cであることのチェック
 pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
-    let (input, _) = tag(&b"FORM"[..])(input)?;
+    let (input, _) = tag(b"FORM" as &[u8])(input)?;
     let (input, size) = be_u32(input)?;
-    let (input, _id) = alt((tag(&b"AIFF"[..]), tag(&b"AIFC"[..]))).parse(input)?;
+    let (input, _id) = alt((tag(b"AIFF" as &[u8]), tag(b"AIFC" as &[u8]))).parse(input)?;
     Ok((input, AiffHeader { size }))
 }
 
