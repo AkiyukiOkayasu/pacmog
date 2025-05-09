@@ -1,21 +1,14 @@
 use crate::{AudioFormat, PcmSpecs};
-use nom::branch::alt;
-use nom::bytes::complete::{tag, take};
-use nom::number::complete::{be_i16, be_i32, be_u32};
-use nom::IResult;
+use winnow::binary::{be_i16, be_i32, be_u32};
+use winnow::combinator::alt;
+use winnow::error::ModalResult;
+use winnow::token::{literal, take};
+use winnow::Parser;
 
 #[derive(thiserror::Error, Debug)]
 enum AiffError {
     #[error("Buffer length must be exactly 10 bytes")]
     InvalidBufferLength,
-}
-
-/// AiffErrorをnom::Errに変換する
-/// 変換時に情報が失われてしまう。とりあえずnom::error::ErrorKind::Failとしたが、IResultを使わずに実装できるか検討したい
-impl From<AiffError> for nom::Err<nom::error::Error<&[u8]>> {
-    fn from(_err: AiffError) -> Self {
-        nom::Err::Error(nom::error::Error::new(&[], nom::error::ErrorKind::Fail))
-    }
 }
 
 /// ckID chunkの種類
@@ -91,45 +84,45 @@ pub(super) struct SsndBlockInfo {
 }
 
 /// ファイルがFORMから始まり、識別子がAIFFもしくはAIFF-Cであることのチェック
-pub(super) fn parse_aiff_header(input: &[u8]) -> IResult<&[u8], AiffHeader> {
-    let (input, _) = tag(b"FORM")(input)?;
-    let (input, size) = be_u32(input)?;
-    let (input, _id) = alt((tag(b"AIFF"), tag(b"AIFC")))(input)?;
-    Ok((input, AiffHeader { size }))
+pub(super) fn parse_aiff_header(input: &mut &[u8]) -> ModalResult<AiffHeader> {
+    literal(b"FORM").parse_next(input)?;
+    let size = be_u32.parse_next(input)?;
+    let _id = alt((literal(b"AIFF"), literal(b"AIFC"))).parse_next(input)?;
+    Ok(AiffHeader { size })
 }
 
 /// 先頭のチャンクを取得する
-pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
-    let (input, id) = take(4usize)(input)?;
-    let id: ChunkId = id.try_into().unwrap();
-    let (input, size) = be_u32(input)?;
-    let (input, data) = take(size)(input)?;
-
-    Ok((input, Chunk { id, size, data }))
+pub(super) fn parse_chunk<'a>(input: &mut &'a [u8]) -> ModalResult<Chunk<'a>> {
+    let id: ChunkId = take(4usize)
+        .map(|id: &'a [u8]| {
+            let id: ChunkId = id.try_into().unwrap();
+            id
+        })
+        .parse_next(input)?;
+    let size = be_u32.parse_next(input)?;
+    let data = take(size).parse_next(input)?;
+    Ok(Chunk { id, size, data })
 }
 
 /// COMMONチャンクのパース
-pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
+pub(super) fn parse_comm(input: &mut &[u8]) -> ModalResult<PcmSpecs> {
     let mut audio_format: AudioFormat = AudioFormat::LinearPcmBe;
 
-    let (input, num_channels) = be_i16(input)?;
+    let num_channels = be_i16.parse_next(input)?;
     let num_channels = num_channels as u16;
-    let (input, num_sample_frames) = be_u32(input)?;
-    let (input, bit_depth) = be_i16(input)?;
+    let num_sample_frames = be_u32.parse_next(input)?;
+    let bit_depth = be_i16.parse_next(input)?;
     let mut bit_depth = bit_depth as u16;
-    let (input, sample_rate) = take(10usize)(input)?;
-    let sample_rate = extended2double(sample_rate).map_err(nom::Err::from)? as u32;
+    let sample_rate = take(10usize)
+        .map(|sample_rate| extended2double(sample_rate).unwrap())
+        .parse_next(input)?;
+    let sample_rate = sample_rate as u32;
 
     if input.len() >= 4 {
         //AIFF-C parameters
-        let (_input, compression_type_id) = take(4usize)(input)?;
-        let Ok((f, b)) = aifc_compression_type(compression_type_id) else {
-            // Unknown compression type
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::Fail,
-            )));
-        };
+        let (f, b) = take(4usize)
+            .map(|compression_type_id| aifc_compression_type(compression_type_id).unwrap())
+            .parse_next(input)?;
         audio_format = f;
         if let Some(b) = b {
             //bit-depthが指定されている場合は上書き
@@ -137,20 +130,17 @@ pub(super) fn parse_comm(input: &[u8]) -> IResult<&[u8], PcmSpecs> {
         }
     }
 
-    Ok((
-        input,
-        PcmSpecs {
-            audio_format,
-            num_channels,
-            sample_rate,
-            bit_depth,
-            num_samples: num_sample_frames,
-            ..Default::default()
-        },
-    ))
+    Ok(PcmSpecs {
+        audio_format,
+        num_channels,
+        sample_rate,
+        bit_depth,
+        num_samples: num_sample_frames,
+        ..Default::default()
+    })
 }
 
-// AIFF-CのCOMMONチャンクにのみ存在するcompressionTypeからEndian, bit-depthを決定する
+/// AIFF-CのCOMMONチャンクにのみ存在するcompressionTypeからEndian, bit-depthを決定する
 fn aifc_compression_type(compression_type_id: &[u8]) -> Result<(AudioFormat, Option<u16>), ()> {
     let t = match compression_type_id {
         b"NONE" => (AudioFormat::LinearPcmBe, None),
@@ -169,11 +159,14 @@ fn aifc_compression_type(compression_type_id: &[u8]) -> Result<(AudioFormat, Opt
     Ok(t)
 }
 
-// SSNDチャンクのパース
-pub(super) fn parse_ssnd(input: &[u8]) -> IResult<&[u8], SsndBlockInfo> {
-    let (input, offset) = be_i32(input)?;
-    let (input, block_size) = be_i32(input)?;
-    Ok((input, SsndBlockInfo { offset, block_size }))
+/// SSNDチャンクのパース
+pub(super) fn parse_ssnd(input: &mut &[u8]) -> ModalResult<SsndBlockInfo> {
+    // offset and block_size are typically 0. Therefore, this only supports files where they are set to 0.
+    let offset = be_i32.verify(|offset| *offset == 0).parse_next(input)?;
+    let block_size = be_i32
+        .verify(|block_size| *block_size == 0)
+        .parse_next(input)?;
+    Ok(SsndBlockInfo { offset, block_size })
 }
 
 /// 80 bit floating point value according to the IEEE-754 specification and the Standard Apple Numeric Environment specification:

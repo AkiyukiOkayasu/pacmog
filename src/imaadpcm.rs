@@ -18,13 +18,12 @@
 
 use crate::{AudioFormat, PcmReader, PcmSpecs};
 use arbitrary_int::u4;
-use heapless::spsc::Queue;
-use nom::bits::{bits, complete::take};
-use nom::number::complete::{le_i16, le_i8, le_u8};
-use nom::sequence::tuple;
-use nom::IResult;
-
 pub use fixed::types::I1F15;
+use heapless::spsc::Queue;
+use winnow::binary::bits::{bits, take};
+use winnow::binary::{le_i16, le_i8, le_u8};
+use winnow::error::{ContextError, ErrMode, ModalResult};
+use winnow::Parser;
 
 /// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
@@ -62,24 +61,24 @@ pub enum ImaAdpcmError {
     FinishPlaying,
     #[error("Block length does not match block align")]
     BlockLengthMismatch,
+    #[error("IMA-ADPCM read data or nibble error.")]
+    ReadError,
 }
 
 /// IMA-ADPCMのHeader Wordをパースする
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 /// http://elm-chan.org/junk/adpcm/RIFF_NEW.pdf
-fn parse_block_header(input: &[u8]) -> IResult<&[u8], BlockHeader> {
-    let (input, i_samp_0) = le_i16(input)?;
-    let i_samp_0 = I1F15::from_bits(i_samp_0);
-    let (input, b_step_table_index) = le_i8(input)?;
-    let (input, _reserved) = le_u8(input)?;
+fn parse_block_header(input: &mut &[u8]) -> ModalResult<BlockHeader> {
+    let i_samp_0 = le_i16
+        .map(|i_samp_0| I1F15::from_bits(i_samp_0))
+        .parse_next(input)?;
+    let b_step_table_index = le_i8.parse_next(input)?;
+    let _reserved = le_u8.void().parse_next(input)?;
 
-    Ok((
-        input,
-        BlockHeader {
-            i_samp_0,
-            b_step_table_index,
-        },
-    ))
+    Ok(BlockHeader {
+        i_samp_0,
+        b_step_table_index,
+    })
 }
 
 /// * 'nibble' - 4bit unsigned int data
@@ -163,7 +162,7 @@ pub struct ImaAdpcmPlayer<'a> {
 
 impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
-    pub fn new(input: &'a [u8]) -> Self {
+    pub fn new(input: &mut &'a [u8]) -> Self {
         //TODO unwrapではなくきちんとエラーハンドリングする
         let reader = PcmReader::new(input).unwrap();
 
@@ -201,8 +200,9 @@ impl<'a> ImaAdpcmPlayer<'a> {
         // 次のData wordsをチャンネル数分よみこむ.
         if self.nibble_queue[0].is_empty() {
             for ch in 0..num_channels as usize {
-                let (remains, nibbles) = parse_data_word(self.reading_block).unwrap();
-                self.reading_block = remains;
+                let Ok(nibbles) = parse_data_word.parse_next(&mut self.reading_block) else {
+                    return Err(ImaAdpcmError::ReadError);
+                };
                 self.nibble_queue[ch].enqueue(u4::new(nibbles.1)).unwrap();
                 self.nibble_queue[ch].enqueue(u4::new(nibbles.0)).unwrap();
                 self.nibble_queue[ch].enqueue(u4::new(nibbles.3)).unwrap();
@@ -244,10 +244,13 @@ impl<'a> ImaAdpcmPlayer<'a> {
 
         for ch in 0..self.reader.specs.num_channels as usize {
             // BlockのHeader wordを読み出す
-            let (block, block_header) = parse_block_header(self.reading_block).unwrap(); //Headerの1ch分は4byte
+            let input: &mut &[u8] = &mut self.reading_block;
+            let Ok(block_header) = parse_block_header(input) else {
+                return Err(ImaAdpcmError::BlockLengthMismatch);
+            };
             self.last_predicted_sample[ch] = block_header.i_samp_0;
             self.step_size_table_index[ch] = block_header.b_step_table_index;
-            self.reading_block = block;
+            self.reading_block = input; //残りのデータをreading_blockへ更新
         }
         Ok(())
     }
@@ -270,8 +273,8 @@ impl<'a> ImaAdpcmPlayer<'a> {
 type DataWordNibbles = (u8, u8, u8, u8, u8, u8, u8, u8);
 
 /// IMA-ADPCMのBlockのData word（32bit長）を8つのnibble(4bit長)にパースする.
-fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
-    bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(tuple((
+fn parse_data_word(input: &mut &[u8]) -> ModalResult<DataWordNibbles> {
+    bits::<_, _, ErrMode<ContextError>, _, _>((
         take(4usize),
         take(4usize),
         take(4usize),
@@ -280,7 +283,8 @@ fn parse_data_word(input: &[u8]) -> IResult<&[u8], DataWordNibbles> {
         take(4usize),
         take(4usize),
         take(4usize),
-    )))(input)
+    ))
+    .parse_next(input)
 }
 
 #[cfg(test)]
