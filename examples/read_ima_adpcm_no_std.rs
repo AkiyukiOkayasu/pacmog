@@ -1,11 +1,13 @@
 //! Read IMA-ADPCM file in no_std environment.
 
-#![no_std]
+// #![no_std]
+
 use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 
 fn main() {
     let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
     let b = buffer.as_mut_slice();
 

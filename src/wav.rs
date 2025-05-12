@@ -86,8 +86,12 @@ pub(super) fn parse_riff_header(input: &mut &[u8]) -> ModalResult<RiffHeader> {
 }
 
 pub(super) fn parse_chunk<'a>(input: &mut &'a [u8]) -> ModalResult<Chunk<'a>> {
-    let chunk_id = take(4usize).parse_next(input)?;
-    let id: ChunkId = chunk_id.try_into().unwrap();
+    let id: ChunkId = take(4usize)
+        .map(|id: &'a [u8]| {
+            let id: ChunkId = id.try_into().unwrap();
+            id
+        })
+        .parse_next(input)?;
     let size = le_u32.parse_next(input)?;
     let data = take(size).parse_next(input)?;
     Ok(Chunk { id, size, data })
@@ -127,10 +131,10 @@ pub(super) fn parse_fmt(input: &mut &[u8]) -> ModalResult<WavFmtSpecs> {
     let block_size = le_u16
         .verify(|block_size| {
             // IMA_ADPCMのときはblock_size(num_block_align)は4の倍数でなければならない
-            return match audio_format {
+            match audio_format {
                 AudioFormat::ImaAdpcmLe => *block_size % 4 == 0,
                 _ => true,
-            };
+            }
         })
         .parse_next(input)?;
     let bit_depth = le_u16.parse_next(input)?;
@@ -138,6 +142,9 @@ pub(super) fn parse_fmt(input: &mut &[u8]) -> ModalResult<WavFmtSpecs> {
     if audio_format == AudioFormat::ImaAdpcmLe {
         //IMA-ADPCMの拡張属性の取得
         let num_block_align = block_size;
+
+        let _cb_size = le_u16.verify(|cb_size| *cb_size == 2).parse_next(input)?;
+
         // wSamplesPerBlock = (((nBlockAlign - (4*nChannels))) * 8) / (wBitPerSample * nChannels) + 1
         let num_samples_per_block = le_u16
             .verify(|num_samples_per_block| {

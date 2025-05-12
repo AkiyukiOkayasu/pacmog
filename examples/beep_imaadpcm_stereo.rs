@@ -5,7 +5,8 @@ use std::sync::mpsc;
 
 fn main() {
     let data = include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
 
     let host = cpal::default_host();

@@ -5,6 +5,7 @@ use std::sync::mpsc;
 
 fn main() {
     let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+    let mut input = &wav[..];
     println!("Wave length in bytes: {}", wav.len());
 
     let host = cpal::default_host();
@@ -15,7 +16,7 @@ fn main() {
     println!("Default output config: {config:?}");
     let channels = config.channels() as usize;
 
-    let reader = PcmReader::new(wav).unwrap();
+    let reader = PcmReader::new(&mut input).unwrap();
     let mut sample_index = 0;
 
     println!("PCM spec: {:?}", reader.get_pcm_specs());

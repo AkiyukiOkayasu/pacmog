@@ -3114,7 +3114,8 @@ fn decode_with_symphonia(data: &'static [u8]) -> (Vec<f32>, u32, usize) {
 #[test]
 fn wav_specs() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let mut reader = PcmReader::new(wav).unwrap();
+    let mut input = &wav[..];
+    let mut reader = PcmReader::new(&mut input).unwrap();
     // 1ch 48kHz 16bit
     {
         let spec = reader.get_pcm_specs();
@@ -3128,7 +3129,8 @@ fn wav_specs() {
     // 1ch 48kHz 24bit
     {
         let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
-        reader.reload(wav).unwrap();
+        let mut input = &wav[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 24);
         assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
@@ -3140,7 +3142,8 @@ fn wav_specs() {
     // 1ch 48kHz 32bit
     {
         let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-        reader.reload(wav).unwrap();
+        let mut input = &wav[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 32);
         assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe);
@@ -3152,7 +3155,8 @@ fn wav_specs() {
     // 1ch 48kHz 32bit float
     {
         let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-        reader.reload(wav).unwrap();
+        let mut input = &wav[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 32);
         assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
@@ -3164,7 +3168,8 @@ fn wav_specs() {
     // 1ch 48kHz 64bit float
     {
         let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
-        reader.reload(wav).unwrap();
+        let mut input = &wav[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 64);
         assert_eq!(spec.audio_format, AudioFormat::IeeeFloatLe); // Little endian
@@ -3176,7 +3181,8 @@ fn wav_specs() {
     // 1ch 22.05kHz 16bit
     {
         let wav = include_bytes!("./resources/MLKDream.wav"); // https://archive.org/details/MLKDream
-        reader.reload(wav).unwrap();
+        let mut input = &wav[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 16);
         assert_eq!(spec.audio_format, AudioFormat::LinearPcmLe); // Little endian
@@ -3189,7 +3195,8 @@ fn wav_specs() {
 #[test]
 fn aiff_specs() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let mut reader = PcmReader::new(data).unwrap();
+    let mut input = &data[..];
+    let mut reader = PcmReader::new(&mut input).unwrap();
     // 1ch 48kHz 16bit
     {
         let spec = reader.get_pcm_specs();
@@ -3203,7 +3210,8 @@ fn aiff_specs() {
     // 1ch 48kHz 24bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 24);
         assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
@@ -3215,7 +3223,8 @@ fn aiff_specs() {
     // 1ch 48kHz 32bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 32);
         assert_eq!(spec.audio_format, AudioFormat::LinearPcmBe);
@@ -3227,7 +3236,8 @@ fn aiff_specs() {
     // 1ch 48kHz 32bit float
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 32);
         assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
@@ -3239,7 +3249,8 @@ fn aiff_specs() {
     // 1ch 48kHz 64bit float
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
         let spec = reader.get_pcm_specs();
         assert_eq!(spec.bit_depth, 64);
         assert_eq!(spec.audio_format, AudioFormat::IeeeFloatBe);
@@ -3252,7 +3263,8 @@ fn aiff_specs() {
 #[test]
 fn wav_compare_with_symphonia() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let mut reader = PcmReader::new(data).unwrap();
+    let mut input = &data[..];
+    let mut reader = PcmReader::new(&mut input).unwrap();
 
     // 1ch 48kHz 16bit
     {
@@ -3274,7 +3286,8 @@ fn wav_compare_with_symphonia() {
     // 1ch 48kHz 24bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.wav");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3294,7 +3307,8 @@ fn wav_compare_with_symphonia() {
     // 1ch 48kHz 32bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3314,7 +3328,8 @@ fn wav_compare_with_symphonia() {
     // 1ch 48kHz 32bit float
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.wav");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3334,7 +3349,8 @@ fn wav_compare_with_symphonia() {
     // 1ch 48kHz 64bit float
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.wav");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3353,7 +3369,8 @@ fn wav_compare_with_symphonia() {
 
     {
         let data = include_bytes!("./resources/MLKDream.wav"); // https://archive.org/details/MLKDream
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3372,7 +3389,8 @@ fn wav_compare_with_symphonia() {
 
     {
         let data = include_bytes!("./resources/Tank_Low17.wav");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3393,7 +3411,8 @@ fn wav_compare_with_symphonia() {
 #[test]
 fn aiff_compare_with_symphonia() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_16.aif");
-    let mut reader = PcmReader::new(data).unwrap();
+    let mut input = &data[..];
+    let mut reader = PcmReader::new(&mut input).unwrap();
 
     // 1ch 48kHz 16bit
     {
@@ -3415,7 +3434,8 @@ fn aiff_compare_with_symphonia() {
     // 1ch 48kHz 24bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_24.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3435,7 +3455,8 @@ fn aiff_compare_with_symphonia() {
     // 1ch 48kHz 32bit
     {
         let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.aif");
-        reader.reload(data).unwrap();
+        let mut input = &data[..];
+        reader.reload(&mut input).unwrap();
 
         let spec = reader.get_pcm_specs();
         let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
@@ -3499,7 +3520,8 @@ fn aiff_compare_with_symphonia() {
 #[test]
 fn aiff_32bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let mut input = &aiff[..];
+    let reader = PcmReader::new(&mut input).unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3517,7 +3539,8 @@ fn aiff_32bit_float() {
 #[test]
 fn aiff_64bit_float() {
     let aiff = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-    let reader = PcmReader::new(aiff).unwrap();
+    let mut input = &aiff[..];
+    let reader = PcmReader::new(&mut input).unwrap();
     let spec = reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240000);
     assert_eq!(spec.sample_rate, 48000);
@@ -3534,7 +3557,8 @@ fn aiff_64bit_float() {
 #[test]
 fn wav_player_32bit() {
     let wav = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32.wav");
-    let reader = PcmReader::new(wav).unwrap();
+    let mut input = &wav[..];
+    let reader = PcmReader::new(&mut input).unwrap();
     let mut player = PcmPlayer::new(reader);
     let spec = player.reader.get_pcm_specs();
     player.set_position(0).unwrap();
@@ -3590,7 +3614,8 @@ fn wav_player_32bit() {
 #[test]
 fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3610,7 +3635,8 @@ fn ima_adpcm_4bit() {
 #[test]
 fn ima_adpcm_4bit_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3646,7 +3672,8 @@ fn ima_adpcm_4bit_play_to_end() {
 #[test]
 fn ima_adpcm_4bit_2ch() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3669,7 +3696,8 @@ fn ima_adpcm_4bit_2ch() {
 #[test]
 fn ima_adpcm_4bit_2ch_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
-    let mut player = ImaAdpcmPlayer::new(data);
+    let mut input = &data[..];
+    let mut player = ImaAdpcmPlayer::new(&mut input);
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);

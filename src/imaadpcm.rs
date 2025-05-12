@@ -7,7 +7,8 @@
 //! use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 //!
 //! let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
-//! let mut player = ImaAdpcmPlayer::new(data);
+//! let mut input = &data[..];
+//! let mut player = ImaAdpcmPlayer::new(&mut input);
 //! let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
 //! let b = buffer.as_mut_slice();
 //!
@@ -69,11 +70,9 @@ pub enum ImaAdpcmError {
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 /// http://elm-chan.org/junk/adpcm/RIFF_NEW.pdf
 fn parse_block_header(input: &mut &[u8]) -> ModalResult<BlockHeader> {
-    let i_samp_0 = le_i16
-        .map(|i_samp_0| I1F15::from_bits(i_samp_0))
-        .parse_next(input)?;
+    let i_samp_0 = le_i16.map(I1F15::from_bits).parse_next(input)?;
     let b_step_table_index = le_i8.parse_next(input)?;
-    let _reserved = le_u8.void().parse_next(input)?;
+    le_u8.void().parse_next(input)?; // reserved bits
 
     Ok(BlockHeader {
         i_samp_0,
