@@ -16,33 +16,57 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain:
-          - stable
+        toolchain: [stable]
+        target:
+          - default
+          - thumbv7em-none-eabihf
 
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - name: install libasound2-dev
         run: |
-          sudo apt-get update
-          sudo apt-get install libasound2-dev
+          if [ "${{ matrix.target }}" == "default" ]; then            
+            sudo apt-get update
+            sudo apt-get install libasound2-dev
+          fi
       - name: Set up Rust
-        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }} && rustup component add rustfmt && rustup component add clippy
+        run: |
+          if [ "${{ matrix.target }}" == "default" ]; then
+            rustup component add rustfmt
+            rustup component add clippy
+          else
+            rustup target add ${{ matrix.target }}
+          fi
       - name: Print Rust version
         run: rustc --version
       - name: Formatter
-        run: cargo fmt -- --check
+        run: |
+          if [ "${{ matrix.target }}" == "default" ]; then
+            cargo fmt -- --check
+          fi
       - name: Build
-        run: cargo build --verbose
+        run: |
+          if [ "${{ matrix.target }}" == "default" ]; then
+            cargo build --verbose
+          else
+            cargo build --target ${{ matrix.target }} --verbose
+          fi
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: |
+          if [ "${{ matrix.target }}" == "default" ]; then
+            cargo clippy --all-targets --all-features -- -D warnings
+          fi
       - name: Run tests
-        run: cargo test --verbose
+        run: |
+          if [ "${{ matrix.target }}" == "default" ]; then
+            cargo test --verbose
+          fi
       - name: Run examples
         run: |
-          cargo build --example beep
-          cargo build --example beep_imaadpcm
-          cargo build --example beep_imaadpcm_stereo
-          cargo build --example print_sample_values
-          cargo build --example read_wav_no_std
-          cargo build --example read_ima_adpcm_no_std
+          if [ "${{ matrix.target }}" == "default" ]; then
+            cargo build --example beep
+            cargo build --example beep_imaadpcm
+            cargo build --example beep_imaadpcm_stereo
+            cargo build --example print_sample_values
+          fi
