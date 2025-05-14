@@ -9,8 +9,9 @@
 //! ```
 //! use pacmog::PcmReader;
 //!
-//! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-//! let reader = PcmReader::new(wav).unwrap();
+//! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+//! let mut input = &wav[..];
+//! let reader = PcmReader::new(&mut input).unwrap();
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels;
@@ -24,14 +25,14 @@
 //!     }
 //! }
 //! ```
+
 #![cfg_attr(not(test), no_std)]
 
 use heapless::Vec;
-use nom::number::complete::{
+use winnow::binary::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
-use nom::Finish;
-use nom::{multi::fold_many1, IResult};
+use winnow::{ModalResult, Parser};
 
 mod aiff;
 pub mod imaadpcm;
@@ -52,6 +53,10 @@ pub enum PcmReaderError {
     InvalidSample,
     #[error("RIFF or AIFF header size mismatch")]
     HeaderSizeMismatch,
+    #[error("fmt parse error")]
+    FmtParseError,
+    #[error("Header parse error")]
+    HeaderParseError,
 }
 
 /// Audio format
@@ -101,95 +106,74 @@ pub struct PcmReader<'a> {
 impl<'a> PcmReader<'a> {
     /// Create a new PcmReader instance.
     /// * 'input' - PCM data byte array
-    pub fn new(input: &'a [u8]) -> Result<Self, PcmReaderError> {
-        let file_length = input.len();
+    pub fn new(input: &mut &'a [u8]) -> Result<Self, PcmReaderError> {
         let mut reader = PcmReader {
             data: &[],
             specs: PcmSpecs::default(),
         };
-
-        // Parse WAVE format
-        if let Ok((input, riff)) = wav::parse_riff_header(input) {
-            if (file_length - 8) != riff.size as usize {
-                return Err(PcmReaderError::HeaderSizeMismatch);
-            }
-
-            if let Ok((_, _)) = reader.parse_wav(input) {
-                return Ok(reader);
-            }
-        }
-
-        // Parse AIFF format
-        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
-            if (file_length - 8) != aiff.size as usize {
-                return Err(PcmReaderError::HeaderSizeMismatch);
-            }
-
-            if let Ok((_, _)) = reader.parse_aiff(input) {
-                return Ok(reader);
-            }
-        }
-
-        Err(PcmReaderError::UnsupportedAudioFormat)
+        reader.reload(input)?;
+        Ok(reader)
     }
 
     /// Reload a new PCM byte array.
-    pub fn reload(&mut self, input: &'a [u8]) -> Result<(), PcmReaderError> {
+    pub fn reload(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
         let file_length = input.len();
         self.data = &[];
         self.specs = PcmSpecs::default();
 
         // Parse WAVE format
-        if let Ok((input, riff)) = wav::parse_riff_header(input) {
-            if (file_length - 8) != riff.size as usize {
+        // inputを消費しないようにparse_nextではなくparse_peekを使用している
+        if let Ok((_, riff)) = wav::parse_riff_header.parse_peek(input) {
+            if file_length - 8 != riff.size as usize {
                 return Err(PcmReaderError::HeaderSizeMismatch);
             }
 
-            if let Ok((_, _)) = self.parse_wav(input) {
-                return Ok(());
-            }
-        }
+            return self.parse_wav(input);
+        };
 
         // Parse AIFF format
-        if let Ok((input, aiff)) = aiff::parse_aiff_header(input) {
+        // inputを消費しないようにparse_nextではなくparse_peekを使用している
+        if let Ok((_, aiff)) = aiff::parse_aiff_header.parse_peek(input) {
             if (file_length - 8) != aiff.size as usize {
                 return Err(PcmReaderError::HeaderSizeMismatch);
             }
 
-            if let Ok((_, _)) = self.parse_aiff(input) {
-                return Ok(());
-            }
-        }
+            return self.parse_aiff(input);
+        };
 
         Err(PcmReaderError::UnsupportedAudioFormat)
     }
 
-    fn parse_aiff(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        let (input, v) = fold_many1(
-            aiff::parse_chunk,
-            Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new,
-            |mut chunk_array: Vec<aiff::Chunk, MAX_NUM_CHUNKS>, item| {
-                chunk_array.push(item).unwrap();
-                chunk_array
-            },
-        )(input)?;
+    /// Parse AIFF format
+    ///
+    /// ## Arguments
+    /// * `input` - PCM data byte array
+    fn parse_aiff(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
+        // Parse AIFF header
+        let Ok(_) = aiff::parse_aiff_header.parse_next(input) else {
+            return Err(PcmReaderError::HeaderParseError);
+        };
 
-        for chunk in v {
+        let mut chunk_vec = Vec::<aiff::Chunk, MAX_NUM_CHUNKS>::new();
+
+        // Parse chunks
+        while let Ok(chunk) = aiff::parse_chunk.parse_next(input) {
+            chunk_vec.push(chunk).unwrap();
+        }
+
+        for mut chunk in chunk_vec {
             match chunk.id {
                 aiff::ChunkId::Common => {
-                    let (_, spec) = aiff::parse_comm(chunk.data)?;
+                    let Ok(spec) = aiff::parse_comm.parse_next(&mut chunk.data) else {
+                        return Err(PcmReaderError::UnsupportedAudioFormat);
+                    };
                     self.specs = spec;
                 }
                 aiff::ChunkId::SoundData => {
-                    let (data, ssnd_block_info) = aiff::parse_ssnd(chunk.data)?;
-                    // offset and block_size are typically 0. Therefore, this only supports files where they are set to 0.
-                    if ssnd_block_info.offset != 0 || ssnd_block_info.block_size != 0 {
-                        return Err(nom::Err::Error(nom::error::Error::new(
-                            input,
-                            nom::error::ErrorKind::Verify,
-                        )));
-                    }
-                    self.data = data;
+                    let Ok(_ssnd_block_info) = aiff::parse_ssnd.parse_next(&mut chunk.data) else {
+                        return Err(PcmReaderError::UnsupportedAudioFormat);
+                    };
+                    self.data = chunk.data;
                 }
                 aiff::ChunkId::FormatVersion => {}
                 aiff::ChunkId::Marker => {}
@@ -205,23 +189,32 @@ impl<'a> PcmReader<'a> {
                 aiff::ChunkId::Unknown => {}
             }
         }
-        Ok((input, &[]))
+        Ok(())
     }
 
-    fn parse_wav(&mut self, input: &'a [u8]) -> IResult<&[u8], &[u8]> {
-        let (input, v) = fold_many1(
-            wav::parse_chunk,
-            Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new,
-            |mut chunk_array: Vec<wav::Chunk, MAX_NUM_CHUNKS>, item| {
-                chunk_array.push(item).unwrap();
-                chunk_array
-            },
-        )(input)?;
+    /// Parse WAVE format
+    ///
+    /// ## Arguments
+    /// * `input` - PCM data byte array
+    fn parse_wav(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
+        // Parse RIFF header
+        let Ok(_) = wav::parse_riff_header.parse_next(input) else {
+            return Err(PcmReaderError::HeaderParseError);
+        };
 
-        for chunk in v {
+        let mut chunk_vec = Vec::<wav::Chunk, MAX_NUM_CHUNKS>::new();
+
+        // Parse chunks
+        while let Ok(chunk) = wav::parse_chunk.parse_next(input) {
+            chunk_vec.push(chunk).unwrap();
+        }
+
+        for mut chunk in chunk_vec {
             match chunk.id {
                 wav::ChunkId::Fmt => {
-                    let (_, spec) = wav::parse_fmt(chunk.data)?;
+                    let Ok(spec) = wav::parse_fmt.parse_next(&mut chunk.data) else {
+                        return Err(PcmReaderError::FmtParseError);
+                    };
                     self.specs.num_channels = spec.num_channels;
                     self.specs.sample_rate = spec.sample_rate;
                     self.specs.audio_format = spec.audio_format;
@@ -258,7 +251,7 @@ impl<'a> PcmReader<'a> {
                 unreachable!();
             }
         }
-        Ok((input, &[]))
+        Ok(())
     }
 
     /// Returns basic information about the PCM file.
@@ -282,8 +275,8 @@ impl<'a> PcmReader<'a> {
         let byte_depth = self.specs.bit_depth / 8u16;
         let byte_offset = ((byte_depth as u32 * sample * num_channels as u32)
             + (byte_depth * channel) as u32) as usize;
-        let data = &self.data[byte_offset..];
-        decode_sample(&self.specs, data)
+        let mut data = &self.data[byte_offset..];
+        decode_sample(&self.specs, &mut data)
     }
 }
 
@@ -292,29 +285,35 @@ impl<'a> PcmReader<'a> {
 /// TODO return not only f32 but also Q15, Q23, f64, etc.
 /// Or make it possible to select f32 or f64.
 /// It may be better to use a function like read_raw_sample() to get fixed-point numbers.
-fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, PcmReaderError> {
+fn decode_sample(specs: &PcmSpecs, data: &mut &[u8]) -> Result<f32, PcmReaderError> {
     match specs.audio_format {
         AudioFormat::Unknown => Err(PcmReaderError::UnsupportedAudioFormat),
         AudioFormat::LinearPcmLe => {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        le_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i16> = le_i16.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        le_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i32> = le_i24.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        le_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i32> = le_i32.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
@@ -325,22 +324,28 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, PcmReaderError> {
             match specs.bit_depth {
                 16 => {
                     const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        be_i16::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i16> = be_i16.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 24 => {
                     const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        be_i24::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i32> = be_i24.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
                 32 => {
                     const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let (_remains, sample) =
-                        be_i32::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<i32> = be_i32.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     let sample = sample as f32 / MAX as f32;
                     Ok(sample)
                 }
@@ -351,14 +356,18 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, PcmReaderError> {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) =
-                        le_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<f32> = le_f32.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) =
-                        le_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<f64> = le_f64.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => Err(PcmReaderError::UnsupportedBitDepth),
@@ -368,14 +377,18 @@ fn decode_sample(specs: &PcmSpecs, data: &[u8]) -> Result<f32, PcmReaderError> {
             match specs.bit_depth {
                 32 => {
                     //32bit float
-                    let (_remains, sample) =
-                        be_f32::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<f32> = be_f32.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     Ok(sample)
                 }
                 64 => {
                     //64bit float
-                    let (_remains, sample) =
-                        be_f64::<_, nom::error::Error<_>>(data).finish().unwrap();
+                    let res: ModalResult<f64> = be_f64.parse_next(data);
+                    let Ok(sample) = res else {
+                        return Err(PcmReaderError::InvalidSample);
+                    };
                     Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
                 }
                 _ => Err(PcmReaderError::UnsupportedBitDepth),

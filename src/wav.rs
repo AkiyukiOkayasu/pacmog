@@ -1,7 +1,7 @@
 use crate::{AudioFormat, PcmReaderError, PcmSpecs};
-use nom::bytes::complete::{tag, take};
-use nom::number::complete::{le_u16, le_u32};
-use nom::IResult;
+use winnow::binary::{le_u16, le_u32};
+use winnow::token::{literal, take};
+use winnow::{ModalResult, Parser};
 
 /// WAVのchunkの種類
 #[derive(Debug, PartialEq, Default)]
@@ -78,19 +78,23 @@ pub(super) struct RiffHeader {
 }
 
 /// ファイルがRIFFから始まり、識別子がWAVEであることのチェック
-pub(super) fn parse_riff_header(input: &[u8]) -> IResult<&[u8], RiffHeader> {
-    let (input, _) = tag(b"RIFF")(input)?;
-    let (input, size) = le_u32(input)?;
-    let (input, _) = tag(b"WAVE")(input)?;
-    Ok((input, RiffHeader { size }))
+pub(super) fn parse_riff_header(input: &mut &[u8]) -> ModalResult<RiffHeader> {
+    literal(b"RIFF").parse_next(input)?;
+    let size = le_u32.parse_next(input)?;
+    literal(b"WAVE").parse_next(input)?;
+    Ok(RiffHeader { size })
 }
 
-pub(super) fn parse_chunk(input: &[u8]) -> IResult<&[u8], Chunk> {
-    let (input, chunk_id) = take(4usize)(input)?;
-    let id: ChunkId = chunk_id.try_into().unwrap();
-    let (input, size) = le_u32(input)?;
-    let (input, data) = take(size)(input)?;
-    Ok((input, Chunk { id, size, data }))
+pub(super) fn parse_chunk<'a>(input: &mut &'a [u8]) -> ModalResult<Chunk<'a>> {
+    let id: ChunkId = take(4usize)
+        .map(|id: &'a [u8]| {
+            let id: ChunkId = id.try_into().unwrap();
+            id
+        })
+        .parse_next(input)?;
+    let size = le_u32.parse_next(input)?;
+    let data = take(size).parse_next(input)?;
+    Ok(Chunk { id, size, data })
 }
 
 /// WAVのfmtチャンクから取得できる情報の構造体
@@ -113,79 +117,60 @@ pub(super) struct WavFmtSpecs {
 /// WAVはLittleEndianしか使わないのでAudioFormat::LinearPcmBe (Be = BigEndian)にはならない.
 /// fmtチャンクはwFormatTagによって拡張属性が追加される場合がある.
 /// https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/Docs/RIFFNEW.pdf
-pub(super) fn parse_fmt(input: &[u8]) -> IResult<&[u8], WavFmtSpecs> {
-    let (input, wave_format_tag) = le_u16(input)?;
+pub(super) fn parse_fmt(input: &mut &[u8]) -> ModalResult<WavFmtSpecs> {
+    let wave_format_tag = le_u16.parse_next(input)?;
     let audio_format = match wave_format_tag.try_into().unwrap() {
         WaveFormatTag::LinearPcm => AudioFormat::LinearPcmLe,
         WaveFormatTag::IeeeFloat => AudioFormat::IeeeFloatLe,
         WaveFormatTag::ImaAdpcm => AudioFormat::ImaAdpcmLe,
     };
 
-    let (input, num_channels) = le_u16(input)?;
-    let (input, sample_rate) = le_u32(input)?;
-    let (input, _bytes_per_seconds) = le_u32(input)?;
-    let (input, block_size) = le_u16(input)?;
-    let (input, bit_depth) = le_u16(input)?;
+    let num_channels = le_u16.parse_next(input)?;
+    let sample_rate = le_u32.parse_next(input)?;
+    let _bytes_per_seconds = le_u32.parse_next(input)?;
+    let block_size = le_u16
+        .verify(|block_size| {
+            // IMA_ADPCMのときはblock_size(num_block_align)は4の倍数でなければならない
+            match audio_format {
+                AudioFormat::ImaAdpcmLe => *block_size % 4 == 0,
+                _ => true,
+            }
+        })
+        .parse_next(input)?;
+    let bit_depth = le_u16.parse_next(input)?;
 
     if audio_format == AudioFormat::ImaAdpcmLe {
         //IMA-ADPCMの拡張属性の取得
         let num_block_align = block_size;
 
-        if block_size % 4 != 0 {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::LengthValue,
-            )));
-        }
-        if input.len() < 4 {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::Eof,
-            )));
-        }
-        let (input, cb_size) = le_u16(input)?;
-        if cb_size != 2 {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::Verify,
-            )));
-        }
+        let _cb_size = le_u16.verify(|cb_size| *cb_size == 2).parse_next(input)?;
 
-        //wSamplesPerBlock = (((nBlockAlign - (4*nChannels))) * 8) / (wBitPerSample * nChannels) + 1
-        let (input, num_samples_per_block) = le_u16(input)?; //2041
-        if num_samples_per_block
-            != ((block_size - (4 * num_channels)) * 8) / (bit_depth * num_channels) + 1
-        {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::Verify,
-            )));
-        }
+        // wSamplesPerBlock = (((nBlockAlign - (4*nChannels))) * 8) / (wBitPerSample * nChannels) + 1
+        let num_samples_per_block = le_u16
+            .verify(|num_samples_per_block| {
+                *num_samples_per_block
+                    == ((num_block_align - (4 * num_channels)) * 8) / (bit_depth * num_channels) + 1
+            })
+            .parse_next(input)?; //2041
 
-        return Ok((
-            input,
-            WavFmtSpecs {
-                audio_format,
-                num_channels,
-                sample_rate,
-                bit_depth,
-                ima_adpcm_num_block_align: Some(num_block_align),
-                ima_adpcm_num_samples_per_block: Some(num_samples_per_block),
-            },
-        ));
-    }
-
-    Ok((
-        input,
-        WavFmtSpecs {
+        return Ok(WavFmtSpecs {
             audio_format,
             num_channels,
             sample_rate,
             bit_depth,
-            ima_adpcm_num_block_align: None,
-            ima_adpcm_num_samples_per_block: None,
-        },
-    ))
+            ima_adpcm_num_block_align: Some(block_size),
+            ima_adpcm_num_samples_per_block: Some(num_samples_per_block),
+        });
+    }
+
+    Ok(WavFmtSpecs {
+        audio_format,
+        num_channels,
+        sample_rate,
+        bit_depth,
+        ima_adpcm_num_block_align: None,
+        ima_adpcm_num_samples_per_block: None,
+    })
 }
 
 /// dataチャンクのサイズ情報からサンプル数を求める
