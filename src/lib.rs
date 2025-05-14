@@ -25,6 +25,7 @@
 //!     }
 //! }
 //! ```
+
 #![cfg_attr(not(test), no_std)]
 
 use heapless::Vec;

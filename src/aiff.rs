@@ -78,6 +78,7 @@ pub(super) struct AiffHeader {
 /// * 'offset' - ほとんどの場合0
 /// * 'block_size' - ほとんどの場合0
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(super) struct SsndBlockInfo {
     pub offset: i32,
     pub block_size: i32,
