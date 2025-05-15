@@ -3615,7 +3615,7 @@ fn wav_player_32bit() {
 fn ima_adpcm_4bit() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut input = &data[..];
-    let mut player = ImaAdpcmPlayer::new(&mut input);
+    let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3636,7 +3636,7 @@ fn ima_adpcm_4bit() {
 fn ima_adpcm_4bit_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
     let mut input = &data[..];
-    let mut player = ImaAdpcmPlayer::new(&mut input);
+    let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3673,7 +3673,7 @@ fn ima_adpcm_4bit_play_to_end() {
 fn ima_adpcm_4bit_2ch() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut input = &data[..];
-    let mut player = ImaAdpcmPlayer::new(&mut input);
+    let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);
@@ -3697,7 +3697,7 @@ fn ima_adpcm_4bit_2ch() {
 fn ima_adpcm_4bit_2ch_play_to_end() {
     let data = include_bytes!("./resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
     let mut input = &data[..];
-    let mut player = ImaAdpcmPlayer::new(&mut input);
+    let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
     let spec = player.reader.get_pcm_specs();
     assert_eq!(spec.num_samples, 240838);
     assert_eq!(spec.sample_rate, 48000);

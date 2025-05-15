@@ -52,7 +52,7 @@ fn parse_decode_ima_adpcm(c: &mut Criterion) {
 
     c.bench_function("Decode IMA-ADPCM", |b| {
         let mut input = &data[..];
-        let mut player = ImaAdpcmPlayer::new(&mut input);
+        let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
         let buf = buffer.as_mut_slice();
         b.iter(|| {
             // player = ImaAdpcmPlayer::new(data);

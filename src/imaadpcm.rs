@@ -8,7 +8,7 @@
 //!
 //! let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
 //! let mut input = &data[..];
-//! let mut player = ImaAdpcmPlayer::new(&mut input);
+//! let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
 //! let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
 //! let b = buffer.as_mut_slice();
 //!
@@ -17,7 +17,7 @@
 //! }
 //! ```
 
-use crate::{AudioFormat, PcmReader, PcmSpecs};
+use crate::{AudioFormat, PcmReader, PcmReaderError, PcmSpecs};
 use arbitrary_int::u4;
 pub use fixed::types::I1F15;
 use heapless::spsc::Queue;
@@ -161,15 +161,14 @@ pub struct ImaAdpcmPlayer<'a> {
 
 impl<'a> ImaAdpcmPlayer<'a> {
     /// * 'input' - PCM data byte array.
-    pub fn new(input: &mut &'a [u8]) -> Self {
-        //TODO unwrapではなくきちんとエラーハンドリングする
-        let reader = PcmReader::new(input).unwrap();
+    pub fn new(input: &mut &'a [u8]) -> Result<Self, PcmReaderError> {
+        let reader = PcmReader::new(input)?;
 
-        ImaAdpcmPlayer {
+        Ok(ImaAdpcmPlayer {
             reader,
             frame_index: 0,
             ..Default::default()
-        }
+        })
     }
 
     /// Return samples value of the next frame.
