@@ -4,7 +4,7 @@ use pacmog::{
     AudioFormat, PcmPlayer, PcmReader,
 };
 
-const SINEWAVE: [f64; 3000] = [
+static SINEWAVE: [f64; 3000] = [
     0f64,
     0.05130394241132398f64,
     0.10243773963885304f64,
