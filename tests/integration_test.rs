@@ -3475,41 +3475,39 @@ fn aiff_compare_with_symphonia() {
 
     // TODO symphonia does not support 32bit float AIFF
 
-    // // 1ch 48kHz 32bit float
+    // 1ch 48kHz 32bit float
     // {
     //     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_32FP.aif");
-    //     reader.reload(data).unwrap();
-
+    //     let mut input = &data[..];
+    //     reader.reload(&mut input).unwrap();
     //     let spec = reader.get_pcm_specs();
     //     let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
     //     assert_eq!(spec.sample_rate, sample_rate);
     //     assert_eq!(spec.num_channels as usize, num_channels);
     //     let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
     //     assert_eq!(symphonia_buf.len(), num_total_samples);
-
     //     for samp in 0..spec.num_samples as usize {
     //         for ch in 0..num_channels {
-    //             let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+    //             let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
     //             assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
     //         }
     //     }
     // }
 
-    // // 1ch 48kHz 64bit float
+    // 1ch 48kHz 64bit float
     // {
     //     let data = include_bytes!("./resources/Sine440Hz_1ch_48000Hz_64FP.aif");
-    //     reader.reload(data).unwrap();
-
+    //     let mut input = &data[..]
+    //     reader.reload(&mut input).unwrap();
     //     let spec = reader.get_pcm_specs();
     //     let (symphonia_buf, sample_rate, num_channels) = decode_with_symphonia(data);
     //     assert_eq!(spec.sample_rate, sample_rate);
     //     assert_eq!(spec.num_channels as usize, num_channels);
     //     let num_total_samples = spec.num_channels as usize * spec.num_samples as usize;
     //     assert_eq!(symphonia_buf.len(), num_total_samples);
-
     //     for samp in 0..spec.num_samples as usize {
     //         for ch in 0..num_channels {
-    //             let sample = reader.read_sample(ch as u32, samp as u32).unwrap();
+    //             let sample = reader.read_sample(ch as u16, samp as u32).unwrap();
     //             assert_relative_eq!(sample, symphonia_buf[samp * num_channels + ch]);
     //         }
     //     }

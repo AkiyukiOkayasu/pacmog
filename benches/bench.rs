@@ -55,7 +55,6 @@ fn parse_decode_ima_adpcm(c: &mut Criterion) {
         let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
         let buf = buffer.as_mut_slice();
         b.iter(|| {
-            // player = ImaAdpcmPlayer::new(data);
             player.rewind();
             for _ in 0..192000 {
                 //4sec
