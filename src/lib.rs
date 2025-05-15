@@ -20,7 +20,7 @@
 //!
 //! for sample in 0..num_samples {
 //!     for channel in 0..num_channels {
-//!         let sample_value = reader.read_sample(channel, sample).unwrap();
+//!         let sample_value: f32 = reader.read_sample(channel, sample).unwrap();
 //!         println!("{}", sample_value);
 //!     }
 //! }
@@ -29,6 +29,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use heapless::Vec;
+use num_traits::float::Float;
 use winnow::binary::{
     be_f32, be_f64, be_i16, be_i24, be_i32, le_f32, le_f64, le_i16, le_i24, le_i32,
 };
@@ -260,9 +261,9 @@ impl<'a> PcmReader<'a> {
         self.specs.clone()
     }
 
-    /// Returns the value of a sample at an arbitrary position.  
-    /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.  
-    pub fn read_sample(&self, channel: u16, sample: u32) -> Result<f32, PcmReaderError> {
+    /// Returns the value of a sample at an arbitrary position.
+    /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.
+    pub fn read_sample<T: Float>(&self, channel: u16, sample: u32) -> Result<T, PcmReaderError> {
         let num_channels = self.specs.num_channels;
         if channel >= num_channels {
             return Err(PcmReaderError::InvalidChannel);
@@ -282,118 +283,97 @@ impl<'a> PcmReader<'a> {
 
 /// Decode a sample from a byte array.
 /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.
-/// TODO return not only f32 but also Q15, Q23, f64, etc.
-/// Or make it possible to select f32 or f64.
-/// It may be better to use a function like read_raw_sample() to get fixed-point numbers.
-fn decode_sample(specs: &PcmSpecs, data: &mut &[u8]) -> Result<f32, PcmReaderError> {
+fn decode_sample<T: Float>(specs: &PcmSpecs, data: &mut &[u8]) -> Result<T, PcmReaderError> {
     match specs.audio_format {
         AudioFormat::Unknown => Err(PcmReaderError::UnsupportedAudioFormat),
-        AudioFormat::LinearPcmLe => {
-            match specs.bit_depth {
-                16 => {
-                    const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i16> = le_i16.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                24 => {
-                    const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i32> = le_i24.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                32 => {
-                    const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i32> = le_i32.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                _ => Err(PcmReaderError::UnsupportedBitDepth),
+        AudioFormat::LinearPcmLe => match specs.bit_depth {
+            16 => {
+                const MAX: u32 = 2u32.pow(15);
+                let res: ModalResult<i16> = le_i16.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
             }
-        }
-        AudioFormat::LinearPcmBe => {
-            match specs.bit_depth {
-                16 => {
-                    const MAX: u32 = 2u32.pow(15); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i16> = be_i16.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                24 => {
-                    const MAX: u32 = 2u32.pow(23); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i32> = be_i24.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                32 => {
-                    const MAX: u32 = 2u32.pow(31); //normalize factor: 2^(BitDepth-1)
-                    let res: ModalResult<i32> = be_i32.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    let sample = sample as f32 / MAX as f32;
-                    Ok(sample)
-                }
-                _ => Err(PcmReaderError::UnsupportedBitDepth),
+            24 => {
+                const MAX: u32 = 2u32.pow(23);
+                let res: ModalResult<i32> = le_i24.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
             }
-        }
-        AudioFormat::IeeeFloatLe => {
-            match specs.bit_depth {
-                32 => {
-                    //32bit float
-                    let res: ModalResult<f32> = le_f32.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    Ok(sample)
-                }
-                64 => {
-                    //64bit float
-                    let res: ModalResult<f64> = le_f64.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
-                }
-                _ => Err(PcmReaderError::UnsupportedBitDepth),
+            32 => {
+                const MAX: u32 = 2u32.pow(31);
+                let res: ModalResult<i32> = le_i32.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
             }
-        }
-        AudioFormat::IeeeFloatBe => {
-            match specs.bit_depth {
-                32 => {
-                    //32bit float
-                    let res: ModalResult<f32> = be_f32.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    Ok(sample)
-                }
-                64 => {
-                    //64bit float
-                    let res: ModalResult<f64> = be_f64.parse_next(data);
-                    let Ok(sample) = res else {
-                        return Err(PcmReaderError::InvalidSample);
-                    };
-                    Ok(sample as f32) // TODO f32にダウンキャストするべきなのか検討
-                }
-                _ => Err(PcmReaderError::UnsupportedBitDepth),
+            _ => Err(PcmReaderError::UnsupportedBitDepth),
+        },
+        AudioFormat::LinearPcmBe => match specs.bit_depth {
+            16 => {
+                const MAX: u32 = 2u32.pow(15);
+                let res: ModalResult<i16> = be_i16.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
             }
-        }
+            24 => {
+                const MAX: u32 = 2u32.pow(23);
+                let res: ModalResult<i32> = be_i24.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
+            }
+            32 => {
+                const MAX: u32 = 2u32.pow(31);
+                let res: ModalResult<i32> = be_i32.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap() / T::from(MAX).unwrap())
+            }
+            _ => Err(PcmReaderError::UnsupportedBitDepth),
+        },
+        AudioFormat::IeeeFloatLe => match specs.bit_depth {
+            32 => {
+                let res: ModalResult<f32> = le_f32.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap())
+            }
+            64 => {
+                let res: ModalResult<f64> = le_f64.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap())
+            }
+            _ => Err(PcmReaderError::UnsupportedBitDepth),
+        },
+        AudioFormat::IeeeFloatBe => match specs.bit_depth {
+            32 => {
+                let res: ModalResult<f32> = be_f32.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap())
+            }
+            64 => {
+                let res: ModalResult<f64> = be_f64.parse_next(data);
+                let Ok(sample) = res else {
+                    return Err(PcmReaderError::InvalidSample);
+                };
+                Ok(T::from(sample).unwrap())
+            }
+            _ => Err(PcmReaderError::UnsupportedBitDepth),
+        },
         AudioFormat::ImaAdpcmLe => Err(PcmReaderError::UnsupportedAudioFormat),
     }
 }
@@ -447,7 +427,7 @@ impl<'a> PcmPlayer<'a> {
 
     /// Return samples value of the next frame.
     /// * ‘out’ - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
-    pub fn get_next_frame(&mut self, out: &mut [f32]) -> Result<(), PcmPlayerError> {
+    pub fn get_next_frame<T: Float>(&mut self, out: &mut [T]) -> Result<(), PcmPlayerError> {
         if out.len() < self.reader.specs.num_channels as usize {
             return Err(PcmPlayerError::OutputBufferTooShort);
         }
