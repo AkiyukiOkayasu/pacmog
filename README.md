@@ -34,8 +34,9 @@ Read a sample WAV file.
 ```Rust
 use pacmog::PcmReader;
 
-let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");                        
-let reader = PcmReader::new(wav);
+let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+let mut input == &wav[..];
+let reader = PcmReader::new(&mut input).unwrap();
 let specs = reader.get_pcm_specs();
 let num_samples = specs.num_samples;
 let num_channels = specs.num_channels as u32;
@@ -44,7 +45,7 @@ println!("PCM info: {:?}", specs);
 
 for sample in 0..num_samples {
     for channel in 0..num_channels {
-        let sample_value = reader.read_sample(channel, sample).unwrap();
+        let sample_value: f32 = reader.read_sample(channel, sample).unwrap();
         println!("{}", sample_value);
     }
 }
