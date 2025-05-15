@@ -21,7 +21,7 @@ fn read_sample(c: &mut Criterion) {
         b.iter(|| {
             for sample in 0..48000 {
                 for channel in 0..pcm_specs.num_channels {
-                    let _s = reader.read_sample(channel, sample).unwrap();
+                    let _s: f32 = reader.read_sample(channel, sample).unwrap();
                 }
             }
         })
