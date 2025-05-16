@@ -69,12 +69,6 @@ for sample in 0..num_samples {
 }
 ```
 
-## Test
-
-```bash
-cargo test
-```
-
 ## Benchmark
 
 ```bash
