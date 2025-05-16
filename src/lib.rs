@@ -468,11 +468,11 @@ pub enum PcmPlayerError {
 /// let mut player = PcmPlayer::new(reader);
 /// let specs = player.reader.get_pcm_specs();
 /// let num_samples = specs.num_samples;
-/// let num_channels = specs.num_channels;
 ///
 /// player.set_loop_playing(true);
 /// let mut buffer: [f32; 2] = [0.0f32; 2];
 /// let buf = buffer.as_mut_slice();
+///
 /// for sample in 0..num_samples {
 ///    player.get_next_frame(buf)?;
 /// }
