@@ -1,74 +1,67 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 use pacmog::{PcmPlayer, PcmReader};
 
-fn parse_wav(c: &mut Criterion) {
-    let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
-    c.bench_function("Parse WAV 16bit", |b| {
-        b.iter(|| {
-            let mut input = black_box(&wav[..]);
-            let _reader = PcmReader::new(&mut input).unwrap();
-        })
-    });
+static WAV_SINE_MONO_48_16_BIT: &[u8] =
+    include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+static WAV_SINE_MONO_48_32_FP: &[u8] =
+    include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_32FP.wav");
+static TANK: &[u8] = include_bytes!("../tests/resources/Tank_Low17.wav");
+static MLK_DREAM: &[u8] = include_bytes!("../tests/resources/MLKDream.wav");
+static IMAADPCM_SINE_MONO_48: &[u8] =
+    include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
+static IMAADPCM_SINE_STEREO_48: &[u8] =
+    include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
+
+#[divan::bench(args = [&WAV_SINE_MONO_48_16_BIT, &WAV_SINE_MONO_48_32_FP, &TANK, &MLK_DREAM, &IMAADPCM_SINE_MONO_48, &IMAADPCM_SINE_STEREO_48])]
+fn parse_wav(input: &[u8]) {
+    let mut input = &input[..];
+    let _reader = PcmReader::new(&mut input).unwrap();
 }
 
-fn read_sample(c: &mut Criterion) {
-    let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
-    let mut input = &wav[..];
+#[divan::bench(args = [&WAV_SINE_MONO_48_16_BIT, &WAV_SINE_MONO_48_32_FP, &TANK, &MLK_DREAM])]
+fn read_sample(input: &[u8]) {
+    let mut input = &input[..];
     let reader = PcmReader::new(&mut input).unwrap();
     let pcm_specs = reader.get_pcm_specs();
-    c.bench_function("Read a sample 16bit", |b| {
-        b.iter(|| {
-            for sample in 0..48000 {
-                for channel in 0..pcm_specs.num_channels {
-                    let _s: f32 = reader.read_sample(channel, sample).unwrap();
-                }
-            }
-        })
-    });
+
+    for sample in 0..192000 {
+        for channel in 0..pcm_specs.num_channels {
+            let _s: f32 = reader.read_sample(channel, sample).unwrap();
+        }
+    }
 }
 
-fn player(c: &mut Criterion) {
-    let data = include_bytes!("../tests/resources/MLKDream.wav");
-    let mut input = &data[..];
+#[divan::bench(
+    types = [f32, f64],
+    args = [&WAV_SINE_MONO_48_16_BIT, &WAV_SINE_MONO_48_32_FP, &TANK, &MLK_DREAM]
+)]
+fn linear_pcm_player<T: num_traits::float::Float>(input: &[u8]) {
+    let mut input = &input[..];
     let reader = PcmReader::new(&mut input).unwrap();
     let mut player = PcmPlayer::new(reader);
-    let mut buffer: [f32; 2] = [0.0, 0.0];
+    let mut buffer: [T; 2] = [T::zero(), T::zero()];
     let buf = buffer.as_mut_slice();
 
-    c.bench_function("PcmPlayer", |b| {
-        b.iter(|| {
-            player.set_position(0).unwrap();
-            for _ in 0..1_000_000 {
-                player.get_next_frame(buf).unwrap();
-            }
-        })
-    });
+    player.set_position(0).unwrap();
+    for _ in 0..192_000 {
+        player.get_next_frame(buf).unwrap();
+    }
 }
 
-fn parse_decode_ima_adpcm(c: &mut Criterion) {
-    let data = include_bytes!("../tests/resources/Sine440Hz_2ch_48000Hz_4bit_IMAADPCM.wav");
+#[divan::bench(args = [&IMAADPCM_SINE_MONO_48, &IMAADPCM_SINE_STEREO_48])]
+fn ima_adpcm_player(input: &[u8]) {
+    let mut input = &input[..];
     let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
+    let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
+    let buf = buffer.as_mut_slice();
 
-    c.bench_function("Decode IMA-ADPCM", |b| {
-        let mut input = &data[..];
-        let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
-        let buf = buffer.as_mut_slice();
-        b.iter(|| {
-            player.rewind();
-            for _ in 0..192000 {
-                //4sec
-                player.get_next_frame(buf).unwrap();
-            }
-        })
-    });
+    player.rewind();
+    for _ in 0..192000 {
+        //4sec
+        player.get_next_frame(buf).unwrap();
+    }
 }
 
-criterion_group!(
-    benches,
-    parse_wav,
-    read_sample,
-    parse_decode_ima_adpcm,
-    player
-);
-criterion_main!(benches);
+fn main() {
+    divan::main();
+}
