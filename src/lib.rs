@@ -8,10 +8,12 @@
 //! Read a sample WAV file.
 //! ```
 //! use pacmog::PcmReader;
+//! # use pacmog::PcmReaderError;
 //!
+//! # fn main() -> Result<(), pacmog::PcmReaderError> {
 //! let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
 //! let mut input = &wav[..];
-//! let reader = PcmReader::new(&mut input).unwrap();
+//! let reader = PcmReader::new(&mut input)?;
 //! let specs = reader.get_pcm_specs();
 //! let num_samples = specs.num_samples;
 //! let num_channels = specs.num_channels;
@@ -20,10 +22,12 @@
 //!
 //! for sample in 0..num_samples {
 //!     for channel in 0..num_channels {
-//!         let sample_value: f32 = reader.read_sample(channel, sample).unwrap();
+//!         let sample_value: f32 = reader.read_sample(channel, sample)?;
 //!         println!("{}", sample_value);
 //!     }
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 #![cfg_attr(not(test), no_std)]
@@ -98,6 +102,33 @@ pub struct PcmSpecs {
 }
 
 /// Reads low level information and Data chunks from the PCM file.
+///
+/// # Examples
+///
+/// Read a sample WAV file.
+/// ```
+/// use pacmog::PcmReader;
+/// # use pacmog::PcmReaderError;
+///
+/// # fn main() -> Result<(), pacmog::PcmReaderError> {
+/// let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+/// let mut input = &wav[..];
+/// let reader = PcmReader::new(&mut input)?;
+/// let specs = reader.get_pcm_specs();
+/// let num_samples = specs.num_samples;
+/// let num_channels = specs.num_channels;
+///
+/// println!("PCM info: {:?}", specs);
+///
+/// for sample in 0..num_samples {
+///     for channel in 0..num_channels {
+///         let sample_value: f32 = reader.read_sample(channel, sample)?;
+///         println!("{}", sample_value);
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Default)]
 pub struct PcmReader<'a> {
     pub(crate) specs: PcmSpecs,
@@ -106,7 +137,14 @@ pub struct PcmReader<'a> {
 
 impl<'a> PcmReader<'a> {
     /// Create a new PcmReader instance.
+    ///
+    /// # Arguments
+    ///
     /// * 'input' - PCM data byte array
+    ///
+    /// # Errors
+    ///
+    /// If the input data is invalid or the PCM specs are not supported, an error will be returned.
     pub fn new(input: &mut &'a [u8]) -> Result<Self, PcmReaderError> {
         let mut reader = PcmReader {
             data: &[],
@@ -117,6 +155,14 @@ impl<'a> PcmReader<'a> {
     }
 
     /// Reload a new PCM byte array.
+    ///
+    /// # Arguments
+    ///
+    /// * 'input' - PCM data byte array
+    ///
+    /// # Errors
+    ///
+    /// If the input data is invalid or the PCM specs are not supported, an error will be returned.
     pub fn reload(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
         let file_length = input.len();
         self.data = &[];
@@ -145,9 +191,10 @@ impl<'a> PcmReader<'a> {
         Err(PcmReaderError::UnsupportedAudioFormat)
     }
 
-    /// Parse AIFF format
+    /// Parse AIFF format.
     ///
-    /// ## Arguments
+    /// # Arguments
+    ///
     /// * `input` - PCM data byte array
     fn parse_aiff(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
         // Parse AIFF header
@@ -193,9 +240,10 @@ impl<'a> PcmReader<'a> {
         Ok(())
     }
 
-    /// Parse WAVE format
+    /// Parse WAVE format.
     ///
-    /// ## Arguments
+    /// # Arguments
+    ///
     /// * `input` - PCM data byte array
     fn parse_wav(&mut self, input: &mut &'a [u8]) -> Result<(), PcmReaderError> {
         // Parse RIFF header
@@ -261,7 +309,15 @@ impl<'a> PcmReader<'a> {
         self.specs.clone()
     }
 
-    /// Returns the value of a sample at an arbitrary position.
+    /// Read the sample at an arbitrary position.
+    ///
+    /// # Arguments
+    ///
+    /// * 'channel' - Channel number (0-indexed)
+    /// * 'sample' - Sample number (0-indexed)
+    ///
+    /// # Returns
+    ///
     /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.
     pub fn read_sample<T: Float>(&self, channel: u16, sample: u32) -> Result<T, PcmReaderError> {
         let num_channels = self.specs.num_channels;
@@ -282,6 +338,14 @@ impl<'a> PcmReader<'a> {
 }
 
 /// Decode a sample from a byte array.
+///
+/// # Arguments
+///
+/// * 'specs' - PCM file specifications
+/// * 'data' - Byte array containing the sample data
+///
+/// # Returns
+///
 /// Returns a normalized value in the range +/-1.0 regardless of AudioFormat.
 fn decode_sample<T: Float>(specs: &PcmSpecs, data: &mut &[u8]) -> Result<T, PcmReaderError> {
     match specs.audio_format {
@@ -390,6 +454,31 @@ pub enum PcmPlayerError {
 }
 
 /// High level of organized players for LinearPCM (WAVE or AIFF) file.
+///
+/// # Examples
+///
+/// Play a sample WAV file.
+/// ```
+/// use pacmog::{PcmPlayer, PcmReader};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let wav = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_16.wav");
+/// let mut input = &wav[..];
+/// let reader = PcmReader::new(&mut input)?;
+/// let mut player = PcmPlayer::new(reader);
+/// let specs = player.reader.get_pcm_specs();
+/// let num_samples = specs.num_samples;
+/// let num_channels = specs.num_channels;
+///
+/// player.set_loop_playing(true);
+/// let mut buffer: [f32; 2] = [0.0f32; 2];
+/// let buf = buffer.as_mut_slice();
+/// for sample in 0..num_samples {
+///    player.get_next_frame(buf)?;
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Default)]
 pub struct PcmPlayer<'a> {
     /// A reader to access basic information about the PCM file.
@@ -419,6 +508,7 @@ impl<'a> PcmPlayer<'a> {
     }
 
     /// Enable loop playback.
+    ///
     /// true: Enable loop playback
     /// false: Disable loop playback
     pub fn set_loop_playing(&mut self, en: bool) {
@@ -426,7 +516,15 @@ impl<'a> PcmPlayer<'a> {
     }
 
     /// Return samples value of the next frame.
+    ///
+    /// # Arguments
+    ///
     /// * ‘out’ - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
+    ///
+    /// # Errors
+    ///
+    /// If the output buffer is too short, an error will be returned.
+    /// If the loop playback is disabled and the end of the file is reached, an error will be returned.
     pub fn get_next_frame<T: Float>(&mut self, out: &mut [T]) -> Result<(), PcmPlayerError> {
         if out.len() < self.reader.specs.num_channels as usize {
             return Err(PcmPlayerError::OutputBufferTooShort);

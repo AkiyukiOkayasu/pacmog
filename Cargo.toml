@@ -27,6 +27,7 @@ cpal = "0.15.3"
 approx = "0.5.1"
 criterion = "0.5.1"
 symphonia = { version = "0.5.4", features = ["aiff", "adpcm"] }
+anyhow = "1.0.98"
 
 [[bench]]
 name = "bench"
