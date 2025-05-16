@@ -6,15 +6,18 @@
 //! ```
 //! use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
 //!
+//! # fn main() -> anyhow::Result<()> {
 //! let data = include_bytes!("../tests/resources/Sine440Hz_1ch_48000Hz_4bit_IMAADPCM.wav");
 //! let mut input = &data[..];
-//! let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
+//! let mut player = ImaAdpcmPlayer::new(&mut input)?;
 //! let mut buffer: [I1F15; 2] = [I1F15::ZERO, I1F15::ZERO];
-//! let b = buffer.as_mut_slice();
+//! let buf = buffer.as_mut_slice();
 //!
 //! for _ in 0..48000 {
-//!     player.get_next_frame(b).unwrap();
+//!     player.get_next_frame(buf)?;
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::{AudioFormat, PcmReader, PcmReaderError, PcmSpecs};
@@ -66,7 +69,8 @@ pub enum ImaAdpcmError {
     ReadError,
 }
 
-/// IMA-ADPCMのHeader Wordをパースする
+/// Parse "Header Word" of IMA-ADPCM.
+///
 /// Multimedia Data Standards Update April 15, 1994 Page 32 of 74
 /// http://elm-chan.org/junk/adpcm/RIFF_NEW.pdf
 fn parse_block_header(input: &mut &[u8]) -> ModalResult<BlockHeader> {
@@ -80,9 +84,18 @@ fn parse_block_header(input: &mut &[u8]) -> ModalResult<BlockHeader> {
     })
 }
 
+/// Decode IMA-ADPCM sample.
+///
+/// # Arguments
+///
 /// * 'nibble' - 4bit unsigned int data
 /// * 'last_predicted_sample' - output of ADPCM predictor [16bitInt]
 /// * 'step_size_table_index' - index into step_size_table [0~88]
+///
+/// # Returns
+///
+/// * 'predicted_sample' - The predicted sample value [16bitInt]
+/// * 'step_size_table_index' - The new index into step_size_table [0~88]
 fn decode_sample(
     nibble: u4,
     last_predicted_sample: I1F15,
@@ -117,7 +130,7 @@ fn decode_sample(
     (predicted_sample, step_size_table_index)
 }
 
-/// Update step_size of IMA-ADPCM table
+/// Update step_size of IMA-ADPCM table.
 fn compute_step_size(nibble: u4, mut step_size_table_index: i8) -> i8 {
     // adjust index into step_size lookup table using original_sample
     step_size_table_index += INDEX_TABLE[nibble.value() as usize];
@@ -172,7 +185,16 @@ impl<'a> ImaAdpcmPlayer<'a> {
     }
 
     /// Return samples value of the next frame.
+    ///
+    /// # Arguments
+    ///
     /// * 'out' - Output buffer which the sample values are written. Number of elements must be equal to or greater than the number of channels in the PCM file.
+    ///
+    /// # Errors
+    ///
+    /// * `ImaAdpcmError::InsufficientOutputBufferChannels` - The number of elements in the output buffer is less than the number of channels in the PCM file.
+    /// * `ImaAdpcmError::FinishPlaying` - The end of the PCM file has been reached.
+    /// * `ImaAdpcmError::ReadError` - Error occurred while reading the next data word.
     pub fn get_next_frame(&mut self, out: &mut [I1F15]) -> Result<(), ImaAdpcmError> {
         let num_channels = self.reader.specs.num_channels;
 
@@ -195,7 +217,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             return Ok(());
         }
 
-        // 次のData wordsをチャンネル数分よみこむ.
+        // Read data words from the block and parse them into nibbles.
         if self.nibble_queue[0].is_empty() {
             for ch in 0..num_channels as usize {
                 let Ok(nibbles) = parse_data_word.parse_next(&mut self.reading_block) else {
@@ -212,7 +234,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
             }
         }
 
-        //デコード
+        // Decode nibbles to samples.
         for (ch, output_value) in out.iter_mut().enumerate().take(num_channels as usize) {
             let nibble = self.nibble_queue[ch].dequeue().unwrap();
             let (predicted_sample, table_index) = decode_sample(
@@ -229,7 +251,7 @@ impl<'a> ImaAdpcmPlayer<'a> {
         Ok(())
     }
 
-    /// IMA-ADPCMのブロック更新.    
+    /// Update the block of IMA-ADPCM.
     fn update_block(&mut self) -> Result<(), ImaAdpcmError> {
         let samples_per_block = self.reader.specs.ima_adpcm_num_samples_per_block.unwrap() as u32;
         let block_align = self.reader.specs.ima_adpcm_num_block_align.unwrap() as u32;

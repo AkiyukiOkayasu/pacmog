@@ -21,7 +21,7 @@ fn read_sample(c: &mut Criterion) {
         b.iter(|| {
             for sample in 0..48000 {
                 for channel in 0..pcm_specs.num_channels {
-                    let _s = reader.read_sample(channel, sample).unwrap();
+                    let _s: f32 = reader.read_sample(channel, sample).unwrap();
                 }
             }
         })
@@ -55,7 +55,6 @@ fn parse_decode_ima_adpcm(c: &mut Criterion) {
         let mut player = ImaAdpcmPlayer::new(&mut input).unwrap();
         let buf = buffer.as_mut_slice();
         b.iter(|| {
-            // player = ImaAdpcmPlayer::new(data);
             player.rewind();
             for _ in 0..192000 {
                 //4sec
