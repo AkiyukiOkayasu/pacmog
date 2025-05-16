@@ -69,12 +69,6 @@ for sample in 0..num_samples {
 }
 ```
 
-## Benchmark
-
-```bash
-cargo criterion
-```
-
 ## no_std
 
 pacmog works with no_std by default.  
