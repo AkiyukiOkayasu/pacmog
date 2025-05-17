@@ -25,7 +25,8 @@ winnow = { version = "0.7.10", default-features = false }
 [dev-dependencies]
 cpal = "0.15.3"
 approx = "0.5.1"
-criterion = "0.5.1"
+# criterion = "0.5.1"
+criterion = { package = "codspeed-criterion-compat", version = "*" }
 symphonia = { version = "0.5.4", features = ["aiff", "adpcm"] }
 anyhow = "1.0.98"
 

@@ -1,0 +1,33 @@
+name: CodSpeed
+
+on:
+    pull_request:
+        branches: ["main"]
+        types: [opened, synchronize, reopened]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  codspeed:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+        - name: install libasound2-dev
+          run: |    
+            sudo apt-get update
+            sudo apt-get install libasound2-dev
+    
+        - name: Set up Rust
+          run: cargo install cargo-codspeed --locked
+
+        - name: Build the benchmarks
+          run: cargo codspeed build
+
+        - name: Run the benchmarks
+          uses: CodSpeedHQ/action@v3
+          with:
+            run: cargo codspeed run
+            token: ${{ secrets.CODSPEED_TOKEN }}
