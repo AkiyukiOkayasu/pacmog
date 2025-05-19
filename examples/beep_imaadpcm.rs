@@ -1,6 +1,6 @@
 //! Play a sample mono ADPCM file.
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
+use pacmog::imaadpcm::{I1F15, ImaAdpcmPlayer};
 use std::sync::mpsc;
 
 fn main() {

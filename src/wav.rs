@@ -191,7 +191,7 @@ pub(super) fn calc_num_samples_per_channel(
 
 #[cfg(test)]
 mod tests {
-    use crate::{wav::calc_num_samples_per_channel, wav::ChunkId, PcmSpecs};
+    use crate::{PcmSpecs, wav::ChunkId, wav::calc_num_samples_per_channel};
 
     use super::WaveFormatTag;
 

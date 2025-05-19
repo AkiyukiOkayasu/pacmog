@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pacmog::imaadpcm::{ImaAdpcmPlayer, I1F15};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use pacmog::imaadpcm::{I1F15, ImaAdpcmPlayer};
 use pacmog::{PcmPlayer, PcmReader};
 
 fn parse_wav(c: &mut Criterion) {

@@ -24,10 +24,10 @@ use crate::{AudioFormat, PcmReader, PcmReaderError, PcmSpecs};
 use arbitrary_int::u4;
 pub use fixed::types::I1F15;
 use heapless::spsc::Queue;
-use winnow::binary::bits::{bits, take};
-use winnow::binary::{le_i16, le_i8, le_u8};
-use winnow::error::{ContextError, ErrMode, ModalResult};
 use winnow::Parser;
+use winnow::binary::bits::{bits, take};
+use winnow::binary::{le_i8, le_i16, le_u8};
+use winnow::error::{ContextError, ErrMode, ModalResult};
 
 /// Index table for STEP_SIZE_TABLE.
 const INDEX_TABLE: [i8; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
@@ -59,7 +59,9 @@ pub enum ImaAdpcmError {
     CantDecodeImaAdpcm,
     #[error("The audio format is not IMA-ADPCM.")]
     NotImaAdpcm,
-    #[error("The number of elements in the output buffer must be at least equal to the number of IMA-ADPCM channels.")]
+    #[error(
+        "The number of elements in the output buffer must be at least equal to the number of IMA-ADPCM channels."
+    )]
     InsufficientOutputBufferChannels,
     #[error("Finish playing.")]
     FinishPlaying,
@@ -309,7 +311,7 @@ fn parse_data_word(input: &mut &[u8]) -> ModalResult<DataWordNibbles> {
 
 #[cfg(test)]
 mod tests {
-    use crate::imaadpcm::{decode_sample, I1F15};
+    use crate::imaadpcm::{I1F15, decode_sample};
     use arbitrary_int::u4;
 
     // http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf
