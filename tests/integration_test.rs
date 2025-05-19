@@ -1,7 +1,7 @@
 use approx::assert_relative_eq;
 use pacmog::{
-    imaadpcm::{ImaAdpcmPlayer, I1F15},
     AudioFormat, PcmPlayer, PcmReader,
+    imaadpcm::{I1F15, ImaAdpcmPlayer},
 };
 
 static SINEWAVE: [f64; 3000] = [

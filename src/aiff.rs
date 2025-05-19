@@ -1,9 +1,9 @@
 use crate::{AudioFormat, PcmSpecs};
+use winnow::Parser;
 use winnow::binary::{be_i16, be_i32, be_u32};
 use winnow::combinator::alt;
 use winnow::error::ModalResult;
 use winnow::token::{literal, take};
-use winnow::Parser;
 
 #[derive(thiserror::Error, Debug)]
 enum AiffError {
@@ -209,7 +209,7 @@ fn extended2double(buffer: &[u8]) -> Result<f64, AiffError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{extended2double, ChunkId};
+    use super::{ChunkId, extended2double};
     use approx::assert_relative_eq;
 
     #[test]
