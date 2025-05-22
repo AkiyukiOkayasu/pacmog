@@ -1,8 +1,8 @@
 # pacmog
 
-[![Cargo](https://img.shields.io/crates/v/pacmog.svg)](https://crates.io/crates/pacmog)  
-[![Documentation](https://docs.rs/pacmog/badge.svg)](https://docs.rs/pacmog)  
-![Tests](https://github.com/AkiyukiOkayasu/pacmog/actions/workflows/ci.yml/badge.svg)  
+[![Cargo](https://img.shields.io/crates/v/pacmog.svg)](https://crates.io/crates/pacmog)
+[![Documentation](https://docs.rs/pacmog/badge.svg)](https://docs.rs/pacmog)
+![Tests](https://github.com/AkiyukiOkayasu/pacmog/actions/workflows/ci.yml/badge.svg)
 
 pacmog is a decoding library for the PCM file.  
 Designed for use in playing the PCM file embedded in microcontroller firmware.  
